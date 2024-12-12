@@ -20,6 +20,13 @@ app_license = "mit"
 # 		"has_permission": "ordercapture_ocr.api.permission.has_app_permission"
 # 	}
 # ]
+app_include_js = [
+    "/assets/ordercapture_ocr/js/vue.js",
+    "/assets/ordercapture_ocr/ordercapture_ocr/dashboard.js",
+    # "/assets/ordercapture_ocr/ordercapture_ocr/components/customer_select.js"
+    # "/assets/ordercapture_ocr/ordercapture_ocr/components/file_uploader.js"
+    
+]
 
 # Includes in <head>
 # ------------------
