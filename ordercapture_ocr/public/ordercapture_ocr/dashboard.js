@@ -19,13 +19,15 @@ ordercapture_ocr.components.Dashboard = {
 					<button @click="uploadFile" class="btn btn-primary">
 						Upload Document
 						</button>
-						<div v-if="uploadStatus" class="mt-2">
-						{{ uploadStatus }}
-						</div>
+						
 						
 					</div><br>
 				  <div class="widget-body">
 					<div class="widget-title">Allow file type .pdf, .xls, .csv</div>
+					<br>
+					<div v-if="uploadStatus" class="mt-2">
+						{{ uploadStatus }}
+						</div>
 				  </div>
 				</div>
 			  </div>
@@ -37,11 +39,11 @@ ordercapture_ocr.components.Dashboard = {
 			</div>
 	
 			<!-- Recent Orders Table -->
-			<div class="row mt-4 pb-4 border border-info">
+			<div class="row mt-4 pb-4 border">
 			  <div class="col-md-12">
 				<div class="widget">
 				  <div class="widget-head">
-					<div class="widget-title">Recent Orders</div>
+					<div class="widget-title">Order Details</div>
 				  </div>
 				  <div class="widget-body">
 					<table class="table">
@@ -68,7 +70,10 @@ ordercapture_ocr.components.Dashboard = {
 						  <td>{{ order.sales }}</td>
 						  <td>{{ order.status }}</td>
 						  <td>
-							{{ order.actions }}
+						  <button @click="viewOrder(order.id)" class="btn btn-sm btn-primary">
+							  {{ order.actions }}
+							</button>
+							
 						  </td>
 						</tr>
 					  </tbody>
@@ -120,18 +125,35 @@ ordercapture_ocr.components.Dashboard = {
         },
         uploadFile() {
           new frappe.ui.FileUploader({
-            doctype: 'OCR Document',
-            docname: 'new-document',
+            doctype: 'OCR Document Processor',
             folder: 'Home/OCR',
+			restrictions: {
+				allowed_file_types: ['.pdf', '.csv', '.xls', '.xlsx']
+			},
             on_success: (file) => {
-              this.uploadStatus = 'File uploaded successfully';
-              this.fetchStats();
-              this.fetchRecentOrders();
-            }
+				frappe.call({
+					method: 'frappe.client.insert',
+					args: {
+					  doc: {
+						doctype: 'OCR Document Processor',
+						file_path: file.file_url,
+						// customer: this.selectedCustomer,
+						status: 'Pending'
+					  }
+					},
+					callback: (r) => {
+					//   this.uploadStatus = file.file_url+" File uploaded successfully";
+					  this.uploadStatus = 'File uploaded and document created successfully';
+					  this.fetchStats();
+					  this.fetchRecentOrders();
+					}
+				  });
+				}
+            
           });
         },
         viewOrder(orderId) {
-          frappe.set_route('Form', 'OCR Document', orderId);
+          frappe.set_route('Form', 'OCR Document Processor', orderId);
         },
         setupCustomerField() {
           let field = frappe.ui.form.make_control({
