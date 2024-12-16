@@ -7,7 +7,6 @@ ordercapture_ocr.components.FileUploader = {
             <div v-if="uploadStatus" class="mt-2">{{ uploadStatus }}</div>
         </div>
     `,
-    // ... component logic
 };
 
 Vue.component('file-uploader', ordercapture_ocr.components.FileUploader);

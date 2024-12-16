@@ -1,0 +1,78 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-12-16 11:39:43.753287",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "file_path",
+  "request_header",
+  "column_break_kmol",
+  "sales_order",
+  "status",
+  "section_break_dsiz",
+  "processed_json"
+ ],
+ "fields": [
+  {
+   "fieldname": "file_path",
+   "fieldtype": "Attach",
+   "label": "File Path"
+  },
+  {
+   "fieldname": "request_header",
+   "fieldtype": "Data",
+   "label": "Request Header"
+  },
+  {
+   "fieldname": "column_break_kmol",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sales_order",
+   "fieldtype": "Link",
+   "label": "Sales Order",
+   "options": "Sales Order",
+   "unique": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Pending\nCompleted"
+  },
+  {
+   "fieldname": "section_break_dsiz",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "processed_json",
+   "fieldtype": "JSON",
+   "label": "Processed JSON"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2024-12-16 12:04:05.363052",
+ "modified_by": "Administrator",
+ "module": "OrderCapture OCR",
+ "name": "OCR Document Processor",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
