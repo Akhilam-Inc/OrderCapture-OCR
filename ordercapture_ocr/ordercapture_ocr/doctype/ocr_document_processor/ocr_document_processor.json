@@ -7,9 +7,11 @@
  "field_order": [
   "file_path",
   "request_header",
+  "customer",
   "column_break_kmol",
   "sales_order",
   "status",
+  "date",
   "section_break_dsiz",
   "processed_json"
  ],
@@ -49,11 +51,23 @@
    "fieldname": "processed_json",
    "fieldtype": "JSON",
    "label": "Processed JSON"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "default": "Today",
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "label": "Date"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-12-16 12:04:05.363052",
+ "modified": "2024-12-16 21:39:06.992884",
  "modified_by": "Administrator",
  "module": "OrderCapture OCR",
  "name": "OCR Document Processor",
