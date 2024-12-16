@@ -61,7 +61,7 @@ ordercapture_ocr.components.Dashboard = {
 					  <tbody>
 						<tr v-for="order in recentOrders" :key="order.id">
 						  <td>{{ order.id }}</td>
-						  <td>{{ order.file }}</td>
+						  <td>{{ order.file_path }}</td>
 						  <td><button @click="viewOrder(order.id)" class="btn btn-sm btn-secondary">
 							  View
 							</button>
@@ -116,13 +116,24 @@ ordercapture_ocr.components.Dashboard = {
       methods: {
         fetchStats() {
         },
-        fetchRecentOrders() {
-          this.recentOrders = [
-              { id: 1, date: '2023-08-01',file: "/files/test.jpg", sales:'pending', processed: 'processed', status: 'Pending',	actions:'Retry' },
-              { id: 2, date: '2023-08-02', file: "/files/test.jpg",sales:'pending', processed: 'processed', status: 'Pending',	actions:'Retry' },
-              { id: 3, date: '2023-08-03',file: "/files/test.jpg",sales:'pending', processed: 'processed', status: 'Completed',	actions:'Done' },
-          ];
-        },
+		fetchRecentOrders() {
+			frappe.call({
+			  method: 'frappe.client.get_list',
+			  args: {
+				doctype: 'OCR Document Processor',
+				fields: ['name as id', 'creation as date', 'file_path', 'sales_order as sales', 'request_header as processed', 'status'],
+				order_by: 'creation desc',
+				limit: 50
+			  },
+			  callback: (r) => {
+				this.recentOrders = r.message.map(order => ({
+				  ...order,
+				  actions: order.status === 'Completed' ? 'Done' : 'Retry'
+				}));
+			  }
+			});
+		},
+       
         uploadFile() {
           new frappe.ui.FileUploader({
             doctype: 'OCR Document Processor',
@@ -152,9 +163,43 @@ ordercapture_ocr.components.Dashboard = {
             
           });
         },
-        viewOrder(orderId) {
-          frappe.set_route('Form', 'OCR Document Processor', orderId);
-        },
+		viewOrder(orderId) {
+			frappe.db.get_doc('OCR Document Processor', orderId)
+			  .then(doc => {
+
+				if (!doc || !doc.file_path) {
+					frappe.msgprint({
+					  title: 'No File Found',
+					  message: 'The document has no associated file',
+					  indicator: 'red'
+					});
+					return;
+				  }
+
+				const fileUrl = doc.file_path;
+				const fileName = fileUrl.split('/').pop();
+				
+				const d = new frappe.ui.Dialog({
+				  title: 'Document Preview',
+				  size: 'large',
+				  fields: [
+					{
+					  fieldtype: 'HTML',
+					  fieldname: 'preview',
+					  options: `
+						<div style="height: 600px; overflow: auto;">
+						  <iframe src="${fileUrl}" width="100%" height="100%" frameborder="0"></iframe>
+						</div>
+					  `
+					}
+				  ],
+				  primary_action_label: 'Close',
+				  primary_action: () => d.hide()
+				});
+				
+				d.show();
+			  });
+		  },
         setupCustomerField() {
           let field = frappe.ui.form.make_control({
             parent: $(this.$refs.customerField),
