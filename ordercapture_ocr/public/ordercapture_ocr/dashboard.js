@@ -1,4 +1,5 @@
 frappe.provide('ordercapture_ocr.components');
+frappe.require('/assets/ordercapture_ocr/ordercapture_ocr/components/process_files.js');
 
 ordercapture_ocr.components.Dashboard = {
     template: `
@@ -83,7 +84,7 @@ ordercapture_ocr.components.Dashboard = {
 			  </div>
 			  <div class="row md-4 d-flex">
 				<div class="col-md-4 ml-4">
-					<button class="btn btn-primary">
+					<button @click="showProcessDialog" class="btn btn-primary">
 						Process Files
 					</button>
 				</div>
@@ -114,6 +115,9 @@ ordercapture_ocr.components.Dashboard = {
         }
       },
       methods: {
+		showProcessDialog() {
+			ordercapture_ocr.process_dialog.show();
+		},
         fetchStats() {
         },
 		fetchRecentOrders() {
@@ -121,7 +125,8 @@ ordercapture_ocr.components.Dashboard = {
 			  method: 'frappe.client.get_list',
 			  args: {
 				doctype: 'OCR Document Processor',
-				fields: ['name as id', 'creation as date', 'file_path', 'sales_order as sales', 'request_header as processed', 'status'],
+				filters: { date: new Date().toISOString().split('T')[0] },
+				fields: ['name as id', 'creation as date', 'file_path', 'sales_order as sales', 'request_header as processed', 'status', 'customer'],
 				order_by: 'creation desc',
 				limit: 50
 			  },
@@ -135,6 +140,10 @@ ordercapture_ocr.components.Dashboard = {
 		},
        
         uploadFile() {
+			if(!this.selectedCustomer) {
+				frappe.msgprint('Please select a customer');
+				return;
+			}
           new frappe.ui.FileUploader({
             doctype: 'OCR Document Processor',
             folder: 'Home/OCR',
@@ -148,7 +157,7 @@ ordercapture_ocr.components.Dashboard = {
 					  doc: {
 						doctype: 'OCR Document Processor',
 						file_path: file.file_url,
-						// customer: this.selectedCustomer,
+						customer: this.selectedCustomer,
 						status: 'Pending'
 					  }
 					},
@@ -209,6 +218,7 @@ ordercapture_ocr.components.Dashboard = {
               options: 'Customer',
               change: () => {
                 this.selectedCustomer = field.get_value();
+				console.log(this.selectedCustomer)
                 // Handle customer selection
               }
             },
