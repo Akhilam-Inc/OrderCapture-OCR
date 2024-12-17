@@ -125,7 +125,7 @@ ordercapture_ocr.components.Dashboard = {
 			  method: 'frappe.client.get_list',
 			  args: {
 				doctype: 'OCR Document Processor',
-				filters: { date: new Date().toISOString().split('T')[0] },
+				filters: { date: new Date().toISOString().split('T')[0], status: 'Pending' },
 				fields: ['name as id', 'creation as date', 'file_path', 'sales_order as sales', 'request_header as processed', 'status', 'customer'],
 				order_by: 'creation desc',
 				limit: 50
@@ -224,6 +224,22 @@ ordercapture_ocr.components.Dashboard = {
             },
             render_input: true
           });
+		  frappe.call({
+			method: 'frappe.client.get_list',
+			args: {
+			  doctype: 'OCR Document Processor',
+			  filters: { date: new Date().toISOString().split('T')[0], status: 'Pending' },
+			  fields: ['customer'],
+			  limit: 1,
+			  order_by: 'creation desc'
+			},
+			callback: (r) => {
+			  if (r.message && r.message[0]) {
+				field.set_value(r.message[0].customer);
+				this.selectedCustomer = r.message[0].customer;
+			  }
+			}
+		  });
         }
       },
       

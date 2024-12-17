@@ -31,13 +31,27 @@ ordercapture_ocr.process_dialog = {
           read_only: 1
         },
         {
+          fieldtype: 'Data',
+          fieldname: 'customer_address_link',
+          label: 'Customer Address Link',
+          read_only: 1
+        },
+        {
             fieldtype: 'Column Break',
             fieldname: 'col_3'
           },
+        
+        
         {
           fieldtype: 'Small Text',
           fieldname: 'customer_address',
           label: 'Customer Address',
+          read_only: 1
+        },
+        {
+          fieldtype: 'Attach',
+          fieldname: 'file_path',
+          label: 'File Path',
           read_only: 1
         },
         {
@@ -56,14 +70,78 @@ ordercapture_ocr.process_dialog = {
                 View File
               </button>
               </div>
-              <button class="btn btn-primary w-50 mb-2" onclick="cur_dialog.events.create_address()">
-                Create New Address
-              </button>
+              <div class="action-buttons d-flex flex-column gap-2 mb-3">
+                <button class="btn btn-primary w-50 mb-2 mr-2" onclick="cur_dialog.events.create_address()">
+                  Create New Address
+                </button>
+                <button class="btn btn-primary w-50 mb-2" onclick="cur_dialog.events.process_file()">
+                  Process File
+                </button>
+              </div>
           `
         },
         {
             fieldtype: 'Section Break',
             fieldname: 'sec_1'
+        },
+        {
+          fieldname: 'items',
+          fieldtype: 'Table',
+          label: 'Items',
+          columns: 7,
+          cannot_add_rows: true,
+          fields: [
+            {
+              fieldname: 'item_code',
+              fieldtype: 'Link',
+              label: 'Item Code',
+              options: 'Item',
+              in_list_view: 1,
+              width: 50
+            },
+            {
+              fieldname: 'item_name',
+              fieldtype: 'Data',
+              label: 'Item Name',
+              in_list_view: 1,
+              width: 50
+            },
+            {
+              fieldname: 'qty',
+              fieldtype: 'Float',
+              label: 'Qty',
+              in_list_view: 1,
+              width: 50
+            },
+            {
+              fieldname: 'rate',
+              fieldtype: 'Currency',
+              label: 'Rate',
+              in_list_view: 1,
+              width: 50
+            },
+            {
+              fieldname: 'gst',
+              fieldtype: 'Data',
+              label: 'GST',
+              in_list_view: 1,
+              width: 50
+            },
+            {
+              fieldname: 'total',
+              fieldtype: 'Currency',
+              label: 'Total Amount',
+              in_list_view: 1,
+              width: 50
+            },
+            {
+              fieldname: 'po_rate',
+              fieldtype: 'Currency',
+              label: 'PO Rate',
+              in_list_view: 1,
+              width: 50
+            }
+          ]
         },
         {
             fieldtype: 'HTML',
@@ -115,7 +193,6 @@ ordercapture_ocr.process_dialog = {
         if (currentIndex < documents.length - 1) {
           currentIndex++;
           loadDocument(documents[currentIndex].name);
-        //   loadCustomerDetails(documents[currentIndex].customer);
 
         }
       },
@@ -123,7 +200,6 @@ ordercapture_ocr.process_dialog = {
         if (currentIndex > 0) {
           currentIndex--;
           loadDocument(documents[currentIndex].name);
-        //   loadCustomerDetails(documents[currentIndex].customer);
 
         }
       }
@@ -133,7 +209,8 @@ ordercapture_ocr.process_dialog = {
     const loadDocument = (docId) => {
       frappe.db.get_doc('OCR Document Processor', docId)
         .then(doc => {        
-          d.set_value('customer', doc.customer);          
+          d.set_value('customer', doc.customer); 
+          d.set_value('file_path', doc.file_path);          
           fetch_customer_details(d);
         });
     };
@@ -142,9 +219,10 @@ ordercapture_ocr.process_dialog = {
       const customer = dialog.get_value('customer');
       
       if (customer) {
-        frappe.db.get_value('Customer', customer, ['customer_name', 'primary_address'])
+        frappe.db.get_value('Customer', customer, ['customer_name', 'customer_primary_address', 'primary_address'])
         .then(r => {
           if (r.message) {
+            dialog.fields_dict.customer_address_link.set_value(r.message.customer_primary_address);
             dialog.fields_dict.customer_name.set_value(r.message.customer_name);
             dialog.fields_dict.customer_address.set_value(r.message.primary_address);
           }
@@ -182,99 +260,60 @@ ordercapture_ocr.process_dialog = {
     `;
     d.$wrapper.find('.modal-header').append(navigationHtml);
 
-    const loadItemsTable = () => {
-        // frappe.call({
-        //   method: 'frappe.client.get_list',
-        //   args: {
-        //     doctype: 'OCR Document Processor',
-        //     fields: ['name as id', 'file_path', 'sales_order as sales', 
-        //             'request_header as processed', 'status'],
-        //     order_by: 'creation desc',
-        //     limit: 50
-        //   },
-        //   callback: (r) => {
-        //     if (r.message) {
-        //       const items = r.message.map(order => ({
-        //         ...order,
-        //         actions: order.status === 'Completed' ? 'Done' : 'Retry'
-        //       }));
-  
-              const html = `
-                  <div class="col-md-12">
-                    <div class="widget">
-                      <div class="widget-body">
-                        <table class="table border">
-                          <thead>
-                            <tr>
-                              <th>Item Code</th>
-                              <th>Item Name</th>
-                              <th>Qty</th>
-                              <th>Rate</th>
-                              <th>GST</th>
-                              <th>Total Amount</th>
-                              <th>PO Rate</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td>System Rate</td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="row md-4 d-flex">
-                    <div class="col-md-6 ml-4">
-                        <p>Different GST Rate type for different customer, Excluded or Included?
-                        In case its different, how we will handle it?</p>
-                    </div>
-                  </div>
-              `;
-
-            //   ${items.map(order => `
-            //     <tr>
-            //       <td>${order.id}</td>
-            //       <td>${order.file_path}</td>
-            //       <td>
-            //         <button onclick="ordercapture_ocr.process_dialog.viewOrder('${order.id}')" 
-            //                 class="btn btn-sm btn-secondary">
-            //           View
-            //         </button>
-            //       </td>
-            //       <td>${order.processed || ''}</td>
-            //       <td>${order.sales || ''}</td>
-            //       <td>${order.status}</td>
-            //       <td>
-            //         <button onclick="ordercapture_ocr.process_dialog.viewOrder('${order.id}')" 
-            //                 class="btn btn-sm btn-primary">
-            //           ${order.actions}
-            //         </button>
-            //       </td>
-            //     </tr>
-            //   `).join('')}
-              
-              d.$wrapper.find('#ocr-items-table').html(html);
-            // }
-        //   }
-        // });
+    d.events.process_file = function() {
+      const sample_items = [
+        {
+          item_code: "ITEM-001",
+          item_name: "Test Item 1",
+          qty: 5,
+          rate: 100,
+          gst: "18%",
+          total: 590,
+          po_rate: 95
+        },
+        {
+          item_code: "ITEM-002", 
+          item_name: "Test Item 2",
+          qty: 3,
+          rate: 200,
+          gst: "12%",
+          total: 672,
+          po_rate: 190
+        }
+      ];
+    
+      // Clear existing rows
+      d.fields_dict.items.df.data = [];
+      
+      // Add new rows
+      sample_items.forEach(item => {
+        let row = d.fields_dict.items.df.data;
+        d.fields_dict.items.grid.add_new_row();
+        row = d.fields_dict.items.df.data[d.fields_dict.items.df.data.length - 1];
+        Object.assign(row, item);
+      });
+    
+      // Refresh the grid
+      d.fields_dict.items.grid.refresh();
+      
+      const totals = sample_items.reduce((acc, item) => ({
+        qty: acc.qty + item.qty,
+        total: acc.total + item.total
+      }), {qty: 0, total: 0});
+    
+      d.set_value('total_item_qty', totals.qty);
+      d.set_value('item_grand_total', totals.total);
     };
-  
+
+
+
+
     this.viewOrder = (orderId) => {
     // Handle view order action
     };
-  
-
-
+    
     d.show();
     d.$wrapper.find('.modal-dialog').css('max-width', '80%');
-    loadItemsTable();
 
   }
 };
