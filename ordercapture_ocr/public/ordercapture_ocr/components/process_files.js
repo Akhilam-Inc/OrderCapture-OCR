@@ -28,19 +28,25 @@ ordercapture_ocr.process_dialog = {
           fieldtype: 'Data',
           fieldname: 'customer_name',
           label: 'Customer Name',
-          read_only: 1
+          read_only: 1,
+          
         },
         {
-          fieldtype: 'Data',
+          fieldtype: 'Link',
           fieldname: 'customer_address_link',
           label: 'Customer Address Link',
-          read_only: 1
+          read_only: 0,
+          options: 'Address',
+          onchange: () => {
+            fetch_customer_address(d)
+          }
         },
         {
-          fieldtype: 'Data',
+          fieldtype: 'Link',
           fieldname: 'current_id',
           label: 'Current ID',
-          read_only: 1
+          read_only: 1,
+          options: 'OCR Document Processor',
         },
         {
             fieldtype: 'Column Break',
@@ -188,7 +194,7 @@ ordercapture_ocr.process_dialog = {
             fieldname: 'post_sales_order',
             options: `
               <div class="action-buttons d-flex flex-row gap-2 mb-3 justify-content-end">
-                <button class="btn btn-primary py-2 mt-4 w-50 mr-2" onclick="cur_dialog.events.save_changes()">
+                <button class="btn btn-primary py-2 mt-4 w-50 mr-2" onclick="cur_dialog.events.post_sales_order()">
                  Post Sales Order
                 </button>
               </div>
@@ -222,6 +228,9 @@ ordercapture_ocr.process_dialog = {
           d.set_value('customer', doc.customer); 
           d.set_value('current_id', doc.name);
           d.set_value('file_path', `File ${currentIndex + 1}: ${doc.file_path}`); 
+          if (doc.processed_json) {
+            setTableFromProcessedJson(d, doc.processed_json);
+          }
           fetch_customer_details(d);
         });
     };
@@ -240,6 +249,27 @@ ordercapture_ocr.process_dialog = {
         });
       }
     };
+
+    fetch_customer_address = function(d){
+      const address_link = d.get_value('customer_address_link');
+      if (address_link) {
+        frappe.db.get_value('Address', address_link, ['address_line1', 'address_line2', 'city', 'state', 'country'])
+          .then(r => {
+            if (r.message) {
+              const addr = r.message;
+              const formatted_address = [
+                addr.address_line1,
+                addr.address_line2,
+                addr.city,
+                addr.state,
+                addr.country
+              ].filter(Boolean).join('\n');
+              
+              d.set_value('customer_address', formatted_address);
+            }
+          });
+      }
+    }
 
     // Initial fetch of documents
     frappe.call({
@@ -273,51 +303,241 @@ ordercapture_ocr.process_dialog = {
 
 
     // Prcess File
-    d.events.process_file = function() {
+    // d.events.process_file = function() {
 
+    //   const file_path_display = d.get_value('file_path');
+    //   const actual_file_path = file_path_display.split(': ')[1]; // Extract the path after ": "
+
+    //   frappe.call({
+    //     method: 'ordercapture_ocr.api.get_ocr_details',
+    //     args: {
+    //       file_path: actual_file_path
+    //     },
+    //     callback: (r) => {
+    //       if (r.message) {
+    //         // Save JSON response to document
+    //         frappe.call({
+    //           method: 'frappe.client.set_value',
+    //           args: {
+    //             doctype: 'OCR Document Processor',
+    //             name: d.get_value('current_id'),
+    //             fieldname: {
+    //               'processed_json': JSON.stringify(r.message)
+    //             }
+    //           },
+    //           callback: () => {
+    //             // Then fetch and load the processed_json
+    //             frappe.db.get_value('OCR Document Processor', d.get_value('current_id'), 'processed_json')
+    //             .then(result => {
+    //               const processed_data = JSON.parse(result.message.processed_json);
+                  
+    //               // Clear existing rows
+    //               d.fields_dict.items.df.data = [];
+
+    //               // Add rows from processed_json
+    //               processed_data.orderDetails.forEach(item => {
+    //                 let row = d.fields_dict.items.df.data;
+    //                 d.fields_dict.items.grid.add_new_row();
+    //                 row = d.fields_dict.items.df.data[d.fields_dict.items.df.data.length - 1];
+    //                 Object.assign(row, item);
+    //               });
+
+    //               // Refresh grid and set totals
+    //               d.fields_dict.items.grid.refresh();
+    //               d.set_value('total_item_qty', processed_data.totals.totalItemQty);
+    //               d.set_value('item_grand_total', processed_data.totals.itemGrandTotal);
+    //             });
+    //           }
+    //         });
+    //       }else{
+    //         frappe.show_alert({
+    //           message: 'No data processed found',
+    //           title: 'Error',
+    //           indicator: 'red'
+    //         });
+    //       }
+    //     }
+    //   })
+      
+    // };
+
+    d.events.process_file = function() {
+      const file_path_display = d.get_value('file_path');
+      const actual_file_path = file_path_display.split(': ')[1];
+    
       frappe.call({
         method: 'ordercapture_ocr.api.get_ocr_details',
         args: {
-          file_path: d.get_value('file_path')
+          file_path: actual_file_path
         },
         callback: (r) => {
           if (r.message) {
-            // Clear existing rows
-            d.fields_dict.items.df.data = [];
-
-            //Get values from response
-            orderDetails = r.message.orderDetails
-            totals = r.message.totals
-
-            // Add new rows
-            orderDetails.forEach(item => {
-              let row = d.fields_dict.items.df.data;
-              d.fields_dict.items.grid.add_new_row();
-              row = d.fields_dict.items.df.data[d.fields_dict.items.df.data.length - 1];
-              Object.assign(row, item);
+            // Create items if they don't exist
+            const createItemPromises = r.message.orderDetails.map(item => {
+              return new Promise((resolve) => {
+                frappe.db.exists('Item', item.itemCode)
+                  .then(exists => {
+                    if (!exists) {
+                      frappe.call({
+                        method: 'frappe.client.insert',
+                        args: {
+                          doc: {
+                            doctype: 'Item',
+                            item_code: item.itemCode,
+                            item_name: item.itemName,
+                            item_group: 'Products', // Set default item group
+                            is_stock_item: 1,
+                            stock_uom: 'Nos' // Set default UOM
+                          }
+                        },
+                        callback: () => resolve()
+                      });
+                    } else {
+                      resolve();
+                    }
+                  });
+              });
             });
-            // Refresh the grid
-            d.fields_dict.items.grid.refresh();
-            d.set_value('total_item_qty', totals.totalItemQty);
-            d.set_value('item_grand_total', totals.itemGrandTotal);
+    
+            // After creating items, proceed with saving processed_json
+            Promise.all(createItemPromises).then(() => {
+              frappe.call({
+                method: 'frappe.client.set_value',
+                args: {
+                  doctype: 'OCR Document Processor',
+                  name: d.get_value('current_id'),
+                  fieldname: {
+                    'processed_json': JSON.stringify(r.message)
+                  }
+                },
+                callback: () => {
+                  setTableFromProcessedJson(d, JSON.stringify(r.message));
+                }
+              });
+            });
           }else{
             frappe.show_alert({
-              message: 'No data found',
+              message: 'No data processed found',
               title: 'Error',
               indicator: 'red'
             });
           }
         }
-      })
+      });
+    };
+    
+    // View File
+    d.events.view_file = function() {
+      const file_path_display = d.get_value('file_path');
+      const actual_file_path = file_path_display.split(': ')[1];
+      window.open(`${actual_file_path}`, '_blank');
+    };
+
+    // Save Changes
+    d.events.save_changes = function() {
+      const items = d.fields_dict.items.grid.data;
+      const processed_data = {
+        customerDetails: {
+          customer: d.get_value('customer'),
+          customerName: d.get_value('customer_name'),
+          customerAddressLink: d.get_value('customer_address_link'),
+          customerAddress: d.get_value('customer_address')
+        },
+        orderDetails: items.map(item => ({
+          itemCode: item.itemCode,
+          itemName: item.itemName,
+          qty: item.qty,
+          rate: item.rate,
+          gst: item.gst,
+          totalAmount: item.totalAmount,
+          poRate: item.poRate
+        })),
+        totals: {
+          totalItemQty: d.get_value('total_item_qty'),
+          itemGrandTotal: d.get_value('item_grand_total')
+        }
+      };
+    
+      frappe.call({
+        method: 'frappe.client.set_value',
+        args: {
+          doctype: 'OCR Document Processor',
+          name: d.get_value('current_id'),
+          fieldname: {
+            'processed_json': JSON.stringify(processed_data)
+          }
+        },
+        callback: (r) => {
+          setTableFromProcessedJson(d, r.message.processed_json)
       
+          frappe.show_alert({
+            message: 'Changes saved successfully',
+            indicator: 'green'
+          });
+        }
+      });
     };
 
+   
+    
+    const setTableFromProcessedJson = (d, processed_json) => {
+      const processed_data = JSON.parse(processed_json);
+      
+      d.fields_dict.items.df.data = [];
+      d.fields_dict.items.grid.data = [];
+      d.fields_dict.items.grid.make_head();
 
+      d.fields_dict.items.grid.refresh();
+      // Add rows from processed_json
+      processed_data.orderDetails.forEach(item => {
+        let row = d.fields_dict.items.df.data;
+        d.fields_dict.items.grid.add_new_row();
+        row = d.fields_dict.items.df.data[d.fields_dict.items.df.data.length - 1];
+        Object.assign(row, item);
+      });
 
-
-    this.viewOrder = (orderId) => {
-    // Handle view order action
+      // Refresh grid and set totals
+      d.fields_dict.items.grid.refresh();
+      d.set_value('total_item_qty', processed_data.totals.totalItemQty);
+      d.set_value('item_grand_total', processed_data.totals.itemGrandTotal);
     };
+
+    d.events.post_sales_order = function() {
+      const items_data = d.fields_dict.items.grid.data;
+      
+      frappe.call({
+        method: 'frappe.client.insert',
+        args: {
+          doc: {
+            doctype: 'Sales Order',
+            customer: d.get_value('customer'),
+            customer_name: d.get_value('customer_name'),
+            customer_address: d.get_value('customer_address_link'),
+            set_warehouse: 'Goods In Transit - AID',
+            items: items_data.map(item => ({
+              item_code: item.itemCode,
+              item_name: item.itemName,
+              qty: item.qty,
+              rate: item.rate,
+              amount: item.totalAmount,
+              delivery_date: frappe.datetime.get_today(),
+              warehouse: 'Goods In Transit - AID',
+            }))
+          }
+        },
+        callback: (r) => {
+          if (r.message) {
+            frappe.show_alert({
+              message: 'Sales Order created successfully',
+              indicator: 'green'
+            });
+            frappe.set_route('Form', 'Sales Order', r.message.name);
+          }
+        }
+      });
+    };
+    
+    
     
     d.show();
     d.$wrapper.find('.modal-dialog').css('max-width', '80%');

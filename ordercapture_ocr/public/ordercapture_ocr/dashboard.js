@@ -58,13 +58,13 @@ ordercapture_ocr.components.Dashboard = {
 					  </thead>
 					  <tbody>
 						<tr v-for="(order, index) in recentOrders" :key="order.id">
-						  <td>{{ order.id }}</td>
+						  <td>{{ index + 1 }}</td>
 						  <td>{{ order.file_path }}</td>
 						  <td><button @click="viewOrder(order.id)" class="btn btn-sm btn-secondary">
 							  View
 							</button>
 						  </td>
-						  <td>{{ index + 1 }}</td>
+						  <td>{{ order.id }}</td>
 						  <td>{{ order.sales }}</td>
 						  <td>{{ order.status }}</td>
 						  <td>
@@ -217,7 +217,7 @@ ordercapture_ocr.components.Dashboard = {
               options: 'Customer',
               change: () => {
                 this.selectedCustomer = field.get_value();
-				console.log(this.selectedCustomer)
+				// console.log(this.selectedCustomer)
                 // Handle customer selection
               }
             },
