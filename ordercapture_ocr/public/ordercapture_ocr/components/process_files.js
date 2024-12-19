@@ -37,6 +37,12 @@ ordercapture_ocr.process_dialog = {
           read_only: 1
         },
         {
+          fieldtype: 'Data',
+          fieldname: 'current_id',
+          label: 'Current ID',
+          read_only: 1
+        },
+        {
             fieldtype: 'Column Break',
             fieldname: 'col_3'
           },
@@ -49,7 +55,7 @@ ordercapture_ocr.process_dialog = {
           read_only: 1
         },
         {
-          fieldtype: 'Attach',
+          fieldtype: 'Data',
           fieldname: 'file_path',
           label: 'File Path',
           read_only: 1
@@ -62,19 +68,19 @@ ordercapture_ocr.process_dialog = {
           fieldtype: 'HTML',
           fieldname: 'action_buttons',
           options: `
-            <div class="action-buttons d-flex flex-row gap-2 mb-3">
-              <button class="btn btn-primary py-2 mb-2 mr-2" onclick="cur_dialog.events.save_changes()">
+            <div class="action-buttons d-flex flex-column gap-2 mb-3 align-items-end">
+              <button class="btn btn-primary mb-2 w-50 mr-2" onclick="cur_dialog.events.save_changes()">
                 Save Changes
               </button>
-              <button class="btn btn-primary w-25 mb-2 mr-2" onclick="cur_dialog.events.view_file()">
+              <button class="btn btn-primary w-50 mb-2 mr-2" onclick="cur_dialog.events.view_file()">
                 View File
               </button>
               </div>
-              <div class="action-buttons d-flex flex-column gap-2 mb-3">
+              <div class="action-buttons d-flex flex-column gap-2 mb-3 align-items-end">
                 <button class="btn btn-primary w-50 mb-2 mr-2" onclick="cur_dialog.events.create_address()">
                   Create New Address
                 </button>
-                <button class="btn btn-primary w-50 mb-2" onclick="cur_dialog.events.process_file()">
+                <button class="btn btn-primary w-50 mb-2 mr-2" onclick="cur_dialog.events.process_file()">
                   Process File
                 </button>
               </div>
@@ -88,58 +94,62 @@ ordercapture_ocr.process_dialog = {
           fieldname: 'items',
           fieldtype: 'Table',
           label: 'Items',
-          columns: 7,
+          // columns: 7,
           cannot_add_rows: true,
           fields: [
             {
-              fieldname: 'item_code',
+              fieldname: 'itemCode',
               fieldtype: 'Link',
               label: 'Item Code',
               options: 'Item',
               in_list_view: 1,
-              width: 50
+              columns: 2
             },
             {
-              fieldname: 'item_name',
+              fieldname: 'itemName',
               fieldtype: 'Data',
               label: 'Item Name',
               in_list_view: 1,
-              width: 50
+              columns: 2
             },
             {
               fieldname: 'qty',
               fieldtype: 'Float',
               label: 'Qty',
               in_list_view: 1,
-              width: 50
+              columns: 1
             },
             {
               fieldname: 'rate',
               fieldtype: 'Currency',
               label: 'Rate',
               in_list_view: 1,
-              width: 50
+              columns: 1
             },
+            {
+              fieldtype: 'Column Break',
+              fieldname: 'col_5'
+          },
             {
               fieldname: 'gst',
               fieldtype: 'Data',
               label: 'GST',
               in_list_view: 1,
-              width: 50
+              columns: 1
             },
             {
-              fieldname: 'total',
+              fieldname: 'totalAmount',
               fieldtype: 'Currency',
               label: 'Total Amount',
               in_list_view: 1,
-              width: 50
+              columns: 2
             },
             {
-              fieldname: 'po_rate',
+              fieldname: 'poRate',
               fieldtype: 'Currency',
               label: 'PO Rate',
               in_list_view: 1,
-              width: 50
+              columns: 1
             }
           ]
         },
@@ -177,8 +187,8 @@ ordercapture_ocr.process_dialog = {
             fieldtype: 'HTML',
             fieldname: 'post_sales_order',
             options: `
-              <div class="action-buttons d-flex flex-row gap-2 mb-3">
-                <button class="btn btn-primary py-2 mb-2 mr-2" onclick="cur_dialog.events.save_changes()">
+              <div class="action-buttons d-flex flex-row gap-2 mb-3 justify-content-end">
+                <button class="btn btn-primary py-2 mt-4 w-50 mr-2" onclick="cur_dialog.events.save_changes()">
                  Post Sales Order
                 </button>
               </div>
@@ -210,7 +220,8 @@ ordercapture_ocr.process_dialog = {
       frappe.db.get_doc('OCR Document Processor', docId)
         .then(doc => {        
           d.set_value('customer', doc.customer); 
-          d.set_value('file_path', doc.file_path);          
+          d.set_value('current_id', doc.name);
+          d.set_value('file_path', `File ${currentIndex + 1}: ${doc.file_path}`); 
           fetch_customer_details(d);
         });
     };
@@ -260,49 +271,42 @@ ordercapture_ocr.process_dialog = {
     `;
     d.$wrapper.find('.modal-header').append(navigationHtml);
 
+
+    // Prcess File
     d.events.process_file = function() {
-      const sample_items = [
-        {
-          item_code: "ITEM-001",
-          item_name: "Test Item 1",
-          qty: 5,
-          rate: 100,
-          gst: "18%",
-          total: 590,
-          po_rate: 95
-        },
-        {
-          item_code: "ITEM-002", 
-          item_name: "Test Item 2",
-          qty: 3,
-          rate: 200,
-          gst: "12%",
-          total: 672,
-          po_rate: 190
+
+      frappe.call({
+        method: 'ordercapture_ocr.api.get_ocr_details',
+        callback: (r) => {
+          if (r.message) {
+            // Clear existing rows
+            d.fields_dict.items.df.data = [];
+
+            //Get values from response
+            orderDetails = r.message.orderDetails
+            totals = r.message.totals
+
+            // Add new rows
+            orderDetails.forEach(item => {
+              let row = d.fields_dict.items.df.data;
+              d.fields_dict.items.grid.add_new_row();
+              row = d.fields_dict.items.df.data[d.fields_dict.items.df.data.length - 1];
+              Object.assign(row, item);
+            });
+            // Refresh the grid
+            d.fields_dict.items.grid.refresh();
+            d.set_value('total_item_qty', totals.totalItemQty);
+            d.set_value('item_grand_total', totals.itemGrandTotal);
+          }else{
+            frappe.show_alert({
+              message: 'No data found',
+              title: 'Error',
+              indicator: 'red'
+            });
+          }
         }
-      ];
-    
-      // Clear existing rows
-      d.fields_dict.items.df.data = [];
+      })
       
-      // Add new rows
-      sample_items.forEach(item => {
-        let row = d.fields_dict.items.df.data;
-        d.fields_dict.items.grid.add_new_row();
-        row = d.fields_dict.items.df.data[d.fields_dict.items.df.data.length - 1];
-        Object.assign(row, item);
-      });
-    
-      // Refresh the grid
-      d.fields_dict.items.grid.refresh();
-      
-      const totals = sample_items.reduce((acc, item) => ({
-        qty: acc.qty + item.qty,
-        total: acc.total + item.total
-      }), {qty: 0, total: 0});
-    
-      d.set_value('total_item_qty', totals.qty);
-      d.set_value('item_grand_total', totals.total);
     };
 
 
