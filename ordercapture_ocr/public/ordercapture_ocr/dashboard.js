@@ -14,18 +14,15 @@ ordercapture_ocr.components.Dashboard = {
 
 				</div>
 			  </div>
-			  <div class="col-md-4">
+			  <div class="col-md-4 d-flex justify-content-end">
 				<div class="widget">
-				  <div class="widget-head">
+				  <div class="widget-head d-flex justify-content-end mb-3">
 					<button @click="uploadFile" class="btn btn-primary">
 						Upload Document
 						</button>
-						
-						
-					</div><br>
-				  <div class="widget-body">
+					</div>
+				  <div class="widget-body d-flex justify-content-end mb-3 flex-column">
 					<div class="widget-title">Allow file type .pdf, .xls, .csv</div>
-					<br>
 					<div v-if="uploadStatus" class="mt-2">
 						{{ uploadStatus }}
 						</div>
@@ -60,14 +57,14 @@ ordercapture_ocr.components.Dashboard = {
 						</tr>
 					  </thead>
 					  <tbody>
-						<tr v-for="order in recentOrders" :key="order.id">
+						<tr v-for="(order, index) in recentOrders" :key="order.id">
 						  <td>{{ order.id }}</td>
 						  <td>{{ order.file_path }}</td>
 						  <td><button @click="viewOrder(order.id)" class="btn btn-sm btn-secondary">
 							  View
 							</button>
 						  </td>
-						  <td>{{ order.processed }}</td>
+						  <td>{{ index + 1 }}</td>
 						  <td>{{ order.sales }}</td>
 						  <td>{{ order.status }}</td>
 						  <td>
@@ -82,17 +79,18 @@ ordercapture_ocr.components.Dashboard = {
 				  </div>
 				</div>
 			  </div>
-			  <div class="row md-4 d-flex">
-				<div class="col-md-4 ml-4">
-					<button @click="showProcessDialog" class="btn btn-primary">
+			  
+			  <div class="col-12">
+				<div class="col-md-12 d-flex justify-content-end flex-row gap-2">
+					<button @click="showProcessDialog" class="btn btn-primary mr-2">
 						Process Files
 					</button>
-				</div>
-
-				<div class="col-md-4 ml-4">
-					<button class="btn btn-primary">
+					<button class="btn btn-primary mr-2">
 						Create Orders
 					</button>
+					<button v-if="recentOrders.length" @click="clearAllFiles" class="btn btn-danger">
+            			Clear All
+        			</button>
 				</div>
 			  </div>
 			</div>
@@ -125,7 +123,7 @@ ordercapture_ocr.components.Dashboard = {
 			  method: 'frappe.client.get_list',
 			  args: {
 				doctype: 'OCR Document Processor',
-				filters: { date: new Date().toISOString().split('T')[0] },
+				filters: { date: new Date().toISOString().split('T')[0], status: 'Pending' },
 				fields: ['name as id', 'creation as date', 'file_path', 'sales_order as sales', 'request_header as processed', 'status', 'customer'],
 				order_by: 'creation desc',
 				limit: 50
@@ -134,6 +132,7 @@ ordercapture_ocr.components.Dashboard = {
 				this.recentOrders = r.message.map(order => ({
 				  ...order,
 				  actions: order.status === 'Completed' ? 'Done' : 'Retry'
+				  
 				}));
 			  }
 			});
@@ -224,7 +223,44 @@ ordercapture_ocr.components.Dashboard = {
             },
             render_input: true
           });
-        }
+		  frappe.call({
+			method: 'frappe.client.get_list',
+			args: {
+			  doctype: 'OCR Document Processor',
+			  filters: { date: new Date().toISOString().split('T')[0], status: 'Pending' },
+			  fields: ['customer'],
+			  limit: 1,
+			  order_by: 'creation desc'
+			},
+			callback: (r) => {
+			  if (r.message && r.message[0]) {
+				field.set_value(r.message[0].customer);
+				this.selectedCustomer = r.message[0].customer;
+			  }
+			}
+		  });
+        },
+		clearAllFiles() {
+			frappe.confirm('Are you sure you want to delete all files?', () => {
+				const promises = this.recentOrders.map(order => {
+					return frappe.call({
+						method: 'frappe.client.delete',
+						args: {
+							doctype: 'OCR Document Processor',
+							name: order.id
+						}
+					});
+				});
+	
+				Promise.all(promises).then(() => {
+					frappe.show_alert({
+						message: 'All files deleted successfully',
+						indicator: 'green'
+					});
+					this.fetchRecentOrders();
+				});
+			});
+		}
       },
       
       mounted() {
