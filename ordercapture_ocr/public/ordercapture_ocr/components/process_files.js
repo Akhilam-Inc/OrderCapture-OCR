@@ -277,6 +277,9 @@ ordercapture_ocr.process_dialog = {
 
       frappe.call({
         method: 'ordercapture_ocr.api.get_ocr_details',
+        args: {
+          file_path: d.get_value('file_path')
+        },
         callback: (r) => {
           if (r.message) {
             // Clear existing rows

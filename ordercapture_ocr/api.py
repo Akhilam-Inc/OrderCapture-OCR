@@ -2,7 +2,7 @@ import frappe
 
 
 @frappe.whitelist()
-def get_ocr_details():
+def get_ocr_details(file_path):
 
     response =  {
         "Customer": {
