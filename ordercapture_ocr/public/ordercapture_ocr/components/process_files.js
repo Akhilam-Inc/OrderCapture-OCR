@@ -4,7 +4,6 @@ ordercapture_ocr.process_dialog = {
   show() {
     let currentIndex = 0;
     let documents = [];
-    let self = this;
 
     const d = new frappe.ui.Dialog({
       title: `OCR Document Details`,
@@ -67,6 +66,12 @@ ordercapture_ocr.process_dialog = {
           read_only: 1
         },
         {
+          fieldtype: 'Data',
+          fieldname: 'status',
+          label: 'Status',
+          read_only: 1
+        },
+        {
           fieldtype: 'Column Break',
           fieldname: 'col_2'
         },
@@ -75,7 +80,7 @@ ordercapture_ocr.process_dialog = {
           fieldname: 'action_buttons',
           options: `
             <div class="action-buttons d-flex flex-column gap-2 mb-3 align-items-end">
-              <button class="btn btn-primary mb-2 w-50 mr-2" onclick="cur_dialog.events.save_changes()">
+              <button class="btn btn-primary mb-2 w-50 mr-2 save-changes-btn" onclick="cur_dialog.events.save_changes()" style="display: none !important;">
                 Save Changes
               </button>
               <button class="btn btn-primary w-50 mb-2 mr-2" onclick="cur_dialog.events.view_file()">
@@ -193,12 +198,13 @@ ordercapture_ocr.process_dialog = {
             fieldtype: 'HTML',
             fieldname: 'post_sales_order',
             options: `
-              <div class="action-buttons d-flex flex-row gap-2 mb-3 justify-content-end">
+              <div class="action-buttons d-flex flex-row gap-2 mb-3 justify-content-end post-sales-order-btn" style="display: none !important;">
                 <button class="btn btn-primary py-2 mt-4 w-50 mr-2" onclick="cur_dialog.events.post_sales_order()">
-                 Post Sales Order
+                  Post Sales Order
                 </button>
               </div>
             `
+
           },
       ]
     });
@@ -208,6 +214,11 @@ ordercapture_ocr.process_dialog = {
       next: function() {
         if (currentIndex < documents.length - 1) {
           currentIndex++;
+         // Clear table first
+          d.fields_dict.items.df.data = [];
+          d.fields_dict.items.grid.data = [];
+          d.fields_dict.items.grid.refresh();
+
           loadDocument(documents[currentIndex].name);
 
         }
@@ -215,18 +226,23 @@ ordercapture_ocr.process_dialog = {
       prev: function() {
         if (currentIndex > 0) {
           currentIndex--;
+         // Clear table first
+          d.fields_dict.items.df.data = [];
+          d.fields_dict.items.grid.data = [];
+          d.fields_dict.items.grid.refresh();
+
           loadDocument(documents[currentIndex].name);
 
         }
       }
     };
-    
 
     const loadDocument = (docId) => {
       frappe.db.get_doc('OCR Document Processor', docId)
         .then(doc => {        
           d.set_value('customer', doc.customer); 
           d.set_value('current_id', doc.name);
+          d.set_value('status', doc.status);
           d.set_value('file_path', `File ${currentIndex + 1}: ${doc.file_path}`); 
           if (doc.processed_json) {
             setTableFromProcessedJson(d, doc.processed_json);
@@ -301,66 +317,7 @@ ordercapture_ocr.process_dialog = {
     `;
     d.$wrapper.find('.modal-header').append(navigationHtml);
 
-
     // Prcess File
-    // d.events.process_file = function() {
-
-    //   const file_path_display = d.get_value('file_path');
-    //   const actual_file_path = file_path_display.split(': ')[1]; // Extract the path after ": "
-
-    //   frappe.call({
-    //     method: 'ordercapture_ocr.api.get_ocr_details',
-    //     args: {
-    //       file_path: actual_file_path
-    //     },
-    //     callback: (r) => {
-    //       if (r.message) {
-    //         // Save JSON response to document
-    //         frappe.call({
-    //           method: 'frappe.client.set_value',
-    //           args: {
-    //             doctype: 'OCR Document Processor',
-    //             name: d.get_value('current_id'),
-    //             fieldname: {
-    //               'processed_json': JSON.stringify(r.message)
-    //             }
-    //           },
-    //           callback: () => {
-    //             // Then fetch and load the processed_json
-    //             frappe.db.get_value('OCR Document Processor', d.get_value('current_id'), 'processed_json')
-    //             .then(result => {
-    //               const processed_data = JSON.parse(result.message.processed_json);
-                  
-    //               // Clear existing rows
-    //               d.fields_dict.items.df.data = [];
-
-    //               // Add rows from processed_json
-    //               processed_data.orderDetails.forEach(item => {
-    //                 let row = d.fields_dict.items.df.data;
-    //                 d.fields_dict.items.grid.add_new_row();
-    //                 row = d.fields_dict.items.df.data[d.fields_dict.items.df.data.length - 1];
-    //                 Object.assign(row, item);
-    //               });
-
-    //               // Refresh grid and set totals
-    //               d.fields_dict.items.grid.refresh();
-    //               d.set_value('total_item_qty', processed_data.totals.totalItemQty);
-    //               d.set_value('item_grand_total', processed_data.totals.itemGrandTotal);
-    //             });
-    //           }
-    //         });
-    //       }else{
-    //         frappe.show_alert({
-    //           message: 'No data processed found',
-    //           title: 'Error',
-    //           indicator: 'red'
-    //         });
-    //       }
-    //     }
-    //   })
-      
-    // };
-
     d.events.process_file = function() {
       const file_path_display = d.get_value('file_path');
       const actual_file_path = file_path_display.split(': ')[1];
@@ -478,14 +435,20 @@ ordercapture_ocr.process_dialog = {
       });
     };
 
-   
-    
     const setTableFromProcessedJson = (d, processed_json) => {
       const processed_data = JSON.parse(processed_json);
       
       d.fields_dict.items.df.data = [];
       d.fields_dict.items.grid.data = [];
       d.fields_dict.items.grid.make_head();
+      // console.log(processed_data);
+      if(processed_data){
+        d.$wrapper.find('.post-sales-order-btn').show();
+        d.$wrapper.find('.save-changes-btn').show();
+      }else{
+        d.$wrapper.find('.post-sales-order-btn').hide();
+        d.$wrapper.find('.save-changes-btn').hide();
+      }
 
       d.fields_dict.items.grid.refresh();
       // Add rows from processed_json
@@ -500,6 +463,7 @@ ordercapture_ocr.process_dialog = {
       d.fields_dict.items.grid.refresh();
       d.set_value('total_item_qty', processed_data.totals.totalItemQty);
       d.set_value('item_grand_total', processed_data.totals.itemGrandTotal);
+
     };
 
     d.events.post_sales_order = function() {
@@ -536,8 +500,6 @@ ordercapture_ocr.process_dialog = {
         }
       });
     };
-    
-    
     
     d.show();
     d.$wrapper.find('.modal-dialog').css('max-width', '80%');

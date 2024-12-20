@@ -20,12 +20,17 @@ app_license = "mit"
 # 		"has_permission": "ordercapture_ocr.api.permission.has_app_permission"
 # 	}
 # ]
+
 app_include_js = [
     "/assets/ordercapture_ocr/js/vue.js",
     "/assets/ordercapture_ocr/ordercapture_ocr/dashboard.js",
-    # "/assets/ordercapture_ocr/ordercapture_ocr/components/customer_select.js"
-    # "/assets/ordercapture_ocr/ordercapture_ocr/components/file_uploader.js"
-    
+    "/assets/ordercapture_ocr/ordercapture_ocr/components/document_loader.js",
+    "/assets/ordercapture_ocr/ordercapture_ocr/components/table_handler.js",
+    "/assets/ordercapture_ocr/ordercapture_ocr/components/file_handler.js",
+    "/assets/ordercapture_ocr/ordercapture_ocr/components/sales_order_handler.js",
+    "/assets/ordercapture_ocr/ordercapture_ocr/components/navigation_handler.js",
+    "/assets/ordercapture_ocr/ordercapture_ocr/components/save_handler.js",
+    "/assets/ordercapture_ocr/ordercapture_ocr/components/process_files.js"
 ]
 
 # Includes in <head>

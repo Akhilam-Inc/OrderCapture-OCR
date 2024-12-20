@@ -49,7 +49,7 @@ ordercapture_ocr.components.Dashboard = {
 						<tr>
 						  <th>ID</th>
 						  <th>Uploaded File</th>
-						  <th>View</th>
+						  <th>View File</th>
 						  <th>Processed Doc Ref</th>
 						  <th>Sales Doc Ref</th>
 						  <th>Status</th>
@@ -68,9 +68,15 @@ ordercapture_ocr.components.Dashboard = {
 						  <td>{{ order.sales }}</td>
 						  <td>{{ order.status }}</td>
 						  <td>
-						  <button @click="viewOrder(order.id)" class="btn btn-sm btn-primary">
+						  	<button @click="viewOrder(order.id)" class="btn btn-sm btn-primary">
 							  {{ order.actions }}
 							</button>
+						  	<button @click="viewOrder(order.id)" class="btn btn-sm btn-primary">
+							  <svg class="icon  icon-md" style="" aria-hidden="true">
+								<use class="" href="#icon-edit"></use>
+							</svg>
+							</button>
+						  	
 							
 						  </td>
 						</tr>
