@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format:OCR{MM}{YYYY}-.{####}",
+ "autoname": "format:OCR{MM}{YYYY}-{####}",
  "creation": "2024-12-16 11:39:43.753287",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -80,7 +80,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-12-19 08:09:30.398329",
+ "modified": "2024-12-19 16:09:12.819777",
  "modified_by": "Administrator",
  "module": "OrderCapture OCR",
  "name": "OCR Document Processor",

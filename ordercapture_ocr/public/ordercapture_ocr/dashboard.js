@@ -49,7 +49,7 @@ ordercapture_ocr.components.Dashboard = {
 						<tr>
 						  <th>ID</th>
 						  <th>Uploaded File</th>
-						  <th>View</th>
+						  <th>View File</th>
 						  <th>Processed Doc Ref</th>
 						  <th>Sales Doc Ref</th>
 						  <th>Status</th>
@@ -58,19 +58,25 @@ ordercapture_ocr.components.Dashboard = {
 					  </thead>
 					  <tbody>
 						<tr v-for="(order, index) in recentOrders" :key="order.id">
-						  <td>{{ order.id }}</td>
+						  <td>{{ index + 1 }}</td>
 						  <td>{{ order.file_path }}</td>
 						  <td><button @click="viewOrder(order.id)" class="btn btn-sm btn-secondary">
 							  View
 							</button>
 						  </td>
-						  <td>{{ index + 1 }}</td>
+						  <td>{{ order.id }}</td>
 						  <td>{{ order.sales }}</td>
 						  <td>{{ order.status }}</td>
 						  <td>
-						  <button @click="viewOrder(order.id)" class="btn btn-sm btn-primary">
+						  	<button @click="viewOrder(order.id)" class="btn btn-sm btn-primary">
 							  {{ order.actions }}
 							</button>
+						  	<button @click="viewOrder(order.id)" class="btn btn-sm btn-primary">
+							  <svg class="icon  icon-md" style="" aria-hidden="true">
+								<use class="" href="#icon-edit"></use>
+							</svg>
+							</button>
+						  	
 							
 						  </td>
 						</tr>
@@ -217,7 +223,7 @@ ordercapture_ocr.components.Dashboard = {
               options: 'Customer',
               change: () => {
                 this.selectedCustomer = field.get_value();
-				console.log(this.selectedCustomer)
+				// console.log(this.selectedCustomer)
                 // Handle customer selection
               }
             },
