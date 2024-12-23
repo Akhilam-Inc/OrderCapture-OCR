@@ -66,18 +66,21 @@ ordercapture_ocr.components.Dashboard = {
 						  </td>
 						  <td>{{ order.id }}</td>
 						  <td>{{ order.sales }}</td>
-						  <td>{{ order.status }}</td>
 						  <td>
-						  	<button @click="viewOrder(order.id)" class="btn btn-sm btn-primary">
-							  {{ order.actions }}
-							</button>
-						  	<button @click="viewOrder(order.id)" class="btn btn-sm btn-primary">
+							<span class="indicator-pill" :class="{
+								'red': order.status === 'Failed',
+								'orange': order.status === 'Pending',
+								'green': order.status === 'Completed'
+								}">
+								{{ order.status }}
+							</span>
+							</td>
+						  <td>
+						  	<button  @click="showProcessDialog(order.id)" class="btn btn-sm btn-primary">
 							  <svg class="icon  icon-md" style="" aria-hidden="true">
 								<use class="" href="#icon-edit"></use>
 							</svg>
 							</button>
-						  	
-							
 						  </td>
 						</tr>
 					  </tbody>
@@ -119,8 +122,8 @@ ordercapture_ocr.components.Dashboard = {
         }
       },
       methods: {
-		showProcessDialog() {
-			ordercapture_ocr.process_dialog.show();
+		showProcessDialog(docId) {
+			ordercapture_ocr.process_dialog.show(docId);
 		},
         fetchStats() {
         },
@@ -129,7 +132,9 @@ ordercapture_ocr.components.Dashboard = {
 			  method: 'frappe.client.get_list',
 			  args: {
 				doctype: 'OCR Document Processor',
-				filters: { date: new Date().toISOString().split('T')[0], status: 'Pending' },
+				filters: [ 
+					['date', '=', new Date().toISOString().split('T')[0]], 
+				],
 				fields: ['name as id', 'creation as date', 'file_path', 'sales_order as sales', 'request_header as processed', 'status', 'customer'],
 				order_by: 'creation desc',
 				limit: 50
@@ -137,7 +142,7 @@ ordercapture_ocr.components.Dashboard = {
 			  callback: (r) => {
 				this.recentOrders = r.message.map(order => ({
 				  ...order,
-				  actions: order.status === 'Completed' ? 'Done' : 'Retry'
+				  actions: order.status === 'Failed' ? 'Retry' : 'Done'
 				  
 				}));
 			  }
@@ -233,7 +238,7 @@ ordercapture_ocr.components.Dashboard = {
 			method: 'frappe.client.get_list',
 			args: {
 			  doctype: 'OCR Document Processor',
-			  filters: { date: new Date().toISOString().split('T')[0], status: 'Pending' },
+			  filters: { date: new Date().toISOString().split('T')[0] },
 			  fields: ['customer'],
 			  limit: 1,
 			  order_by: 'creation desc'
