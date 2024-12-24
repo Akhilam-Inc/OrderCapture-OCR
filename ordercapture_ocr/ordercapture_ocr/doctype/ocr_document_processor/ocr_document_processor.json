@@ -44,7 +44,7 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "Pending\nCompleted"
+   "options": "Pending\nFailed\nCompleted"
   },
   {
    "fieldname": "section_break_dsiz",
@@ -80,7 +80,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-12-19 16:09:12.819777",
+ "modified": "2024-12-20 12:32:10.410382",
  "modified_by": "Administrator",
  "module": "OrderCapture OCR",
  "name": "OCR Document Processor",

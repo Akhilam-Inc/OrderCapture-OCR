@@ -1,7 +1,7 @@
 frappe.provide('ordercapture_ocr.process_dialog');
 
 ordercapture_ocr.process_dialog = {
-  show() {
+  show(docId) {
     let currentIndex = 0;
     let documents = [];
 
@@ -36,6 +36,14 @@ ordercapture_ocr.process_dialog = {
           label: 'Customer Address Link',
           read_only: 0,
           options: 'Address',
+          get_query: () => {
+            return {
+              filters: {
+                link_doctype: 'Customer',
+                link_name: d.get_value('customer')
+              }
+            };
+          },
           onchange: () => {
             fetch_customer_address(d)
           }
@@ -45,6 +53,7 @@ ordercapture_ocr.process_dialog = {
           fieldname: 'current_id',
           label: 'Current ID',
           read_only: 1,
+          // default: docId,
           options: 'OCR Document Processor',
         },
         {
@@ -91,7 +100,7 @@ ordercapture_ocr.process_dialog = {
                 <button class="btn btn-primary w-50 mb-2 mr-2" onclick="cur_dialog.events.create_address()">
                   Create New Address
                 </button>
-                <button class="btn btn-primary w-50 mb-2 mr-2" onclick="cur_dialog.events.process_file()">
+                <button class="btn btn-primary w-50 mb-2 mr-2 process-file-btn" onclick="cur_dialog.events.process_file()">
                   Process File
                 </button>
               </div>
@@ -198,8 +207,8 @@ ordercapture_ocr.process_dialog = {
             fieldtype: 'HTML',
             fieldname: 'post_sales_order',
             options: `
-              <div class="action-buttons d-flex flex-row gap-2 mb-3 justify-content-end post-sales-order-btn" style="display: none !important;">
-                <button class="btn btn-primary py-2 mt-4 w-50 mr-2" onclick="cur_dialog.events.post_sales_order()">
+              <div class="action-buttons d-flex flex-row gap-2 mb-3 justify-content-end ">
+                <button class="btn btn-primary py-2 mt-4 w-50 mr-2 post-sales-order-btn" onclick="cur_dialog.events.post_sales_order()">
                   Post Sales Order
                 </button>
               </div>
@@ -234,7 +243,8 @@ ordercapture_ocr.process_dialog = {
           loadDocument(documents[currentIndex].name);
 
         }
-      }
+      },
+
     };
 
     const loadDocument = (docId) => {
@@ -244,10 +254,26 @@ ordercapture_ocr.process_dialog = {
           d.set_value('current_id', doc.name);
           d.set_value('status', doc.status);
           d.set_value('file_path', `File ${currentIndex + 1}: ${doc.file_path}`); 
+          
+          // Update process file button text
+          const processBtn = d.$wrapper.find('.process-file-btn');
+          if (doc.status === 'Failed') {
+              processBtn.text('Retry');
+              d.$wrapper.find('.save-changes-btn').css('display', 'none');
+              d.$wrapper.find('.post-sales-order-btn').css('display','none');
+          } else {
+            processBtn.text('Process File');
+          }
+
           if (doc.processed_json) {
             setTableFromProcessedJson(d, doc.processed_json);
+          }else{
+            d.$wrapper.find('.post-sales-order-btn').hide();
+            d.$wrapper.find('.save-changes-btn').hide();
           }
+
           fetch_customer_details(d);
+
         });
     };
 
@@ -286,27 +312,34 @@ ordercapture_ocr.process_dialog = {
           });
       }
     }
-
-    // Initial fetch of documents
-    frappe.call({
-      method: 'frappe.client.get_list',
-      args: {
-        doctype: 'OCR Document Processor',
-        filters: { date: new Date().toISOString().split('T')[0] },
-        fields: ['name'],
-        order_by: 'creation desc'
-      },
-      callback: (r) => {
-        if (r.message && r.message.length) {
-          documents = r.message;
-          loadDocument(documents[0].name);
+    
+    if (typeof(docId) == 'string') {
+      loadDocument(docId);
+    
+    }else{
+      // Initial fetch of documents
+      frappe.call({
+        method: 'frappe.client.get_list',
+        args: {
+          doctype: 'OCR Document Processor',
+          filters: { date: new Date().toISOString().split('T')[0] },
+          fields: ['name'],
+          order_by: 'creation desc'
+        },
+        callback: (r) => {
+          if (r.message && r.message.length) {
+            documents = r.message;
+            loadDocument(documents[0].name);
+          }
         }
-      }
-    });
+      });
+    }
+    
 
     d.$wrapper.find('.modal-header').css('position', 'relative');
+    d.$wrapper.find('.modal-header').css('padding-bottom', '30px');
     const navigationHtml = `
-      <div class="navigation-buttons" style="position: absolute; right: 10px; top: 40px;">
+      <div class="navigation-buttons mr-4 mb-4 pd-4" style="position: absolute; right: 60px; top: 40px; margin-right: 20px">
         <button class="btn btn-default btn-xs" onclick="cur_dialog.events.prev()">
           <span class="fa fa-chevron-left"></span>
         </button>
@@ -414,7 +447,6 @@ ordercapture_ocr.process_dialog = {
           itemGrandTotal: d.get_value('item_grand_total')
         }
       };
-    
       frappe.call({
         method: 'frappe.client.set_value',
         args: {
@@ -441,14 +473,16 @@ ordercapture_ocr.process_dialog = {
       d.fields_dict.items.df.data = [];
       d.fields_dict.items.grid.data = [];
       d.fields_dict.items.grid.make_head();
-      // console.log(processed_data);
-      if(processed_data){
+      console.log(processed_data.orderDetails.length );
+      if(processed_data.orderDetails.length > 0){
         d.$wrapper.find('.post-sales-order-btn').show();
         d.$wrapper.find('.save-changes-btn').show();
       }else{
         d.$wrapper.find('.post-sales-order-btn').hide();
         d.$wrapper.find('.save-changes-btn').hide();
       }
+
+      
 
       d.fields_dict.items.grid.refresh();
       // Add rows from processed_json
