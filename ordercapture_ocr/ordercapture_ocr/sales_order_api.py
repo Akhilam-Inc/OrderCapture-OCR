@@ -76,6 +76,7 @@ def create_sales_order(response):
             "doctype": "Sales Order",
             "customer": customer_name,
             "delivery_date": frappe.utils.nowdate(),
+            "set_warehouse": 'Goods In Transit - AID',
             "items": []
         })
 
@@ -90,7 +91,7 @@ def create_sales_order(response):
                 "item_code": customer_item_codes[item_code],
                 "qty": item.get('qty'),
                 "rate": item.get('rate'),
-                "warehouse": "Stores - AD",
+                "warehouse": "Stores - AID",
             })
 
         sales_order.insert(ignore_permissions=True)

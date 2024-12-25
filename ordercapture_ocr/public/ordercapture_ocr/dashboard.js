@@ -75,11 +75,16 @@ ordercapture_ocr.components.Dashboard = {
 								{{ order.status }}
 							</span>
 							</td>
-						  <td>
-						  	<button  @click="showProcessDialog(order.id)" class="btn btn-sm btn-primary">
+						  <td class="d-flex justify-content-start gap-1">
+						  	<button  @click="showProcessDialog(order.id)" class="btn btn-sm">
 							  <svg class="icon  icon-md" style="" aria-hidden="true">
 								<use class="" href="#icon-edit"></use>
-							</svg>
+							 </svg>
+							</button>
+						  	<button  @click="DeleteOrder(order.id)" class="btn btn-sm">
+								<svg class="icon  icon-md" style="" aria-hidden="true">
+									<use class="" href="#icon-delete-active"></use>
+								</svg>
 							</button>
 						  </td>
 						</tr>
@@ -123,6 +128,10 @@ ordercapture_ocr.components.Dashboard = {
       },
       methods: {
 		showProcessDialog(docId) {
+			if(!this.selectedCustomer) {
+				frappe.msgprint('No Document to process!');
+				return;
+			}
 			ordercapture_ocr.process_dialog.show(docId);
 		},
         fetchStats() {
@@ -219,6 +228,24 @@ ordercapture_ocr.components.Dashboard = {
 				d.show();
 			  });
 		  },
+		  DeleteOrder(orderId) {
+			frappe.confirm('Are you sure you want to delete this order?', () => {
+				frappe.call({
+					method: 'frappe.client.delete',
+					args: {
+						doctype: 'OCR Document Processor',
+						name: orderId
+					},
+					callback: () => {
+						frappe.show_alert({
+							message: 'Order deleted successfully',
+							indicator: 'green'
+						});
+						this.fetchRecentOrders();
+					}
+				});
+			});
+		},		
         setupCustomerField() {
           let field = frappe.ui.form.make_control({
             parent: $(this.$refs.customerField),

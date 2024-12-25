@@ -263,6 +263,7 @@ ordercapture_ocr.process_dialog = {
               d.$wrapper.find('.post-sales-order-btn').css('display','none');
           } else {
             processBtn.text('Process File');
+            
           }
 
           if (doc.processed_json) {
@@ -426,6 +427,14 @@ ordercapture_ocr.process_dialog = {
     // Save Changes
     d.events.save_changes = function() {
       const items = d.fields_dict.items.grid.data;
+      if (items.length === 0) {
+        frappe.show_alert({
+          message: 'Please add items to save changes.',
+          title: 'Error',
+          indicator: 'red'
+        });
+        return;
+      }
       const processed_data = {
         customerDetails: {
           customer: d.get_value('customer'),
@@ -469,11 +478,12 @@ ordercapture_ocr.process_dialog = {
 
     const setTableFromProcessedJson = (d, processed_json) => {
       const processed_data = JSON.parse(processed_json);
+
       
       d.fields_dict.items.df.data = [];
       d.fields_dict.items.grid.data = [];
       d.fields_dict.items.grid.make_head();
-      console.log(processed_data.orderDetails.length );
+
       if(processed_data.orderDetails.length > 0){
         d.$wrapper.find('.post-sales-order-btn').show();
         d.$wrapper.find('.save-changes-btn').show();
@@ -502,35 +512,45 @@ ordercapture_ocr.process_dialog = {
 
     d.events.post_sales_order = function() {
       const items_data = d.fields_dict.items.grid.data;
-      
+      if (items_data.length === 0) {
+        frappe.show_alert({
+          message: 'Please add items to Post sales order.',
+          title: 'Error',
+          indicator: 'red'
+        });
+        return;
+      }
+      const sales_order_values = {
+        Customer: {
+          customer: d.get_value('customer'),
+          customerName: d.get_value('customer_name'),
+          customerAddressLink: d.get_value('customer_address_link'),
+          customerAddress: d.get_value('customer_address')
+        },
+        orderDetails: items_data.map(item => ({
+          itemCode: item.itemCode,
+          itemName: item.itemName,
+          qty: item.qty,
+          rate: item.rate,
+          gst: item.gst,
+          totalAmount: item.totalAmount,
+          poRate: item.poRate
+        })),
+        totals: {
+          totalItemQty: d.get_value('total_item_qty'),
+          itemGrandTotal: d.get_value('item_grand_total')
+        }
+      };
+
       frappe.call({
-        method: 'frappe.client.insert',
+        method: 'ordercapture_ocr.ordercapture_ocr.sales_order_api.create_sales_order',
         args: {
-          doc: {
-            doctype: 'Sales Order',
-            customer: d.get_value('customer'),
-            customer_name: d.get_value('customer_name'),
-            customer_address: d.get_value('customer_address_link'),
-            set_warehouse: 'Goods In Transit - AID',
-            items: items_data.map(item => ({
-              item_code: item.itemCode,
-              item_name: item.itemName,
-              qty: item.qty,
-              rate: item.rate,
-              amount: item.totalAmount,
-              delivery_date: frappe.datetime.get_today(),
-              warehouse: 'Goods In Transit - AID',
-            }))
-          }
+          response: sales_order_values
         },
         callback: (r) => {
-          if (r.message) {
-            frappe.show_alert({
-              message: 'Sales Order created successfully',
-              indicator: 'green'
-            });
-            frappe.set_route('Form', 'Sales Order', r.message.name);
-          }
+            const sales_order_name = r.message;
+            d.$wrapper.find('.post-sales-order-btn').hide();
+            frappe.set_route('Form', 'Sales Order', sales_order_name);
         }
       });
     };
