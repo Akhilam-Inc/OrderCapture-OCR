@@ -363,6 +363,7 @@ ordercapture_ocr.process_dialog = {
         },
         callback: (r) => {
           if (r.message) {
+            console.log(r.message)
             // Create items if they don't exist
             const createItemPromises = r.message.orderDetails.map(item => {
               return new Promise((resolve) => {
@@ -446,7 +447,7 @@ ordercapture_ocr.process_dialog = {
           itemCode: item.itemCode,
           itemName: item.itemName,
           qty: item.qty,
-          rate: item.rate,
+          rate: item.landing_rate,
           gst: item.gst,
           totalAmount: item.totalAmount,
           poRate: item.poRate
@@ -531,10 +532,10 @@ ordercapture_ocr.process_dialog = {
           itemCode: item.itemCode,
           itemName: item.itemName,
           qty: item.qty,
-          rate: item.rate,
+          rate: item.landing_rate,
           gst: item.gst,
-          totalAmount: item.totalAmount,
-          poRate: item.poRate
+          totalAmount: item.totalAmount
+          
         })),
         totals: {
           totalItemQty: d.get_value('total_item_qty'),

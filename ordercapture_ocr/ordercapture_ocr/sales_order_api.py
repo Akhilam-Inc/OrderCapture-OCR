@@ -52,7 +52,9 @@ def get_customer_item_code(response):
 
 @frappe.whitelist()
 def create_sales_order(response):
-    # frappe.throw(str(response))
+    source_warehouse = frappe.db.get_single_value('Order Capture OCR Configuration', 'source_warehouse_for_sales_order')
+    if not source_warehouse:
+        frappe.throw(_("Please set Source Warehouse for Sales Order in Order Capture OCR Configuration"))
     try:
         if isinstance(response, str):
             response = frappe.parse_json(response)
@@ -76,7 +78,7 @@ def create_sales_order(response):
             "doctype": "Sales Order",
             "customer": customer_name,
             "delivery_date": frappe.utils.nowdate(),
-            "set_warehouse": 'Goods In Transit - AID',
+            "set_warehouse": source_warehouse,
             "items": []
         })
 
@@ -91,7 +93,7 @@ def create_sales_order(response):
                 "item_code": customer_item_codes[item_code],
                 "qty": item.get('qty'),
                 "rate": item.get('rate'),
-                "warehouse": "Stores - AID",
+                "warehouse": source_warehouse,
             })
 
         sales_order.insert(ignore_permissions=True)

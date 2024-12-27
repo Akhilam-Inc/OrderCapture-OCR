@@ -17,7 +17,7 @@ ordercapture_ocr.components.sales_order_handler = {
             item_code: item.itemCode,
             item_name: item.itemName,
             qty: item.qty,
-            rate: item.rate,
+            rate: item.po_rate,
             amount: item.totalAmount,
             warehouse: 'Stores - OCR'
           }))
