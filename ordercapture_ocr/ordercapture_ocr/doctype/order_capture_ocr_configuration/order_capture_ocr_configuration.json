@@ -1,0 +1,54 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-12-25 12:16:33.750371",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "settings_section",
+  "source_warehouse_for_sales_order",
+  "openai_api_secret"
+ ],
+ "fields": [
+  {
+   "fieldname": "settings_section",
+   "fieldtype": "Section Break",
+   "label": "Settings"
+  },
+  {
+   "description": "Select Default Warehouse for sales order",
+   "fieldname": "source_warehouse_for_sales_order",
+   "fieldtype": "Link",
+   "label": "Source Warehouse for Sales Order",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "openai_api_secret",
+   "fieldtype": "Password",
+   "label": "OpenAI API Secret"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2024-12-25 12:19:06.776552",
+ "modified_by": "Administrator",
+ "module": "OrderCapture OCR",
+ "name": "Order Capture OCR Configuration",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
