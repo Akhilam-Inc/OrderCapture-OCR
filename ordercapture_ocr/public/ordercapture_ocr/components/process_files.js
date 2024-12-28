@@ -123,14 +123,14 @@ ordercapture_ocr.process_dialog = {
               label: 'Item Code',
               options: 'Item',
               in_list_view: 1,
-              columns: 2
+              columns: 1
             },
             {
               fieldname: 'itemName',
               fieldtype: 'Data',
               label: 'Item Name',
               in_list_view: 1,
-              columns: 2
+              columns: 1
             },
             {
               fieldname: 'qty',
@@ -165,9 +165,17 @@ ordercapture_ocr.process_dialog = {
               columns: 2
             },
             {
-              fieldname: 'poRate',
+              fieldname: 'landing_rate',
               fieldtype: 'Currency',
-              label: 'PO Rate',
+              label: 'Landing Rate',
+              in_list_view: 1,
+              columns: 2
+            }
+            ,
+            {
+              fieldname: 'plRate',
+              fieldtype: 'Currency',
+              label: 'Price List Rate',
               in_list_view: 1,
               columns: 1
             }
@@ -198,6 +206,36 @@ ordercapture_ocr.process_dialog = {
             fieldname: 'item_grand_total',
             label: 'Item Grand Total',
             read_only: 1
+        },
+        {
+            fieldtype: 'Column Break',
+            fieldname: 'col_4'
+        },
+        {
+          fieldtype: 'Data',
+          fieldname: 'total_taxes',
+          label: 'Total Taxes',
+          read_only: 1
+        },
+        {
+            fieldtype: 'Column Break',
+            fieldname: 'col_4'
+        },
+        {
+          fieldtype: 'Data',
+          fieldname: 'total_net_amount',
+          label: 'Total Net Amount',
+          read_only: 1
+        },
+        {
+            fieldtype: 'Column Break',
+            fieldname: 'col_4'
+        },
+        {
+          fieldtype: 'Data',
+          fieldname: 'total_grand_total',
+          label: 'Total Grand Total',
+          read_only: 1
         },
         {
             fieldtype: 'Column Break',
@@ -355,6 +393,21 @@ ordercapture_ocr.process_dialog = {
     d.events.process_file = function() {
       const file_path_display = d.get_value('file_path');
       const actual_file_path = file_path_display.split(': ')[1];
+      
+      // Add blur to entire dialog
+      d.$wrapper.css('filter', 'blur(2px)');
+        
+      // Show round loading spinner
+      let loader = `
+        <div class="ocr-loader" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999;">
+          <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+            <span class="sr-only">Processing...</span>
+          </div>
+          <div class="mt-2 text-primary">Processing Document...</div>
+        </div>
+      `;
+      $('body').append(loader);
+
     
       frappe.call({
         method: 'ordercapture_ocr.api.get_ocr_details',
@@ -362,6 +415,9 @@ ordercapture_ocr.process_dialog = {
           file_path: actual_file_path
         },
         callback: (r) => {
+          // Remove blur and loader
+          d.$wrapper.css('filter', '');
+          $('.ocr-loader').remove();
           if (r.message) {
             console.log(r.message)
             // Create items if they don't exist
@@ -408,12 +464,25 @@ ordercapture_ocr.process_dialog = {
               });
             });
           }else{
+            // Remove loader on error
+            d.$wrapper.css('filter', '');
+            $('.ocr-loader').remove();
             frappe.show_alert({
               message: 'No data processed found',
               title: 'Error',
               indicator: 'red'
             });
           }
+        },
+        error: (r) => {
+          // Remove loader on error
+          d.$wrapper.css('filter', '');
+          $('.ocr-loader').remove();
+          
+          frappe.show_alert({
+            message: 'Error processing document',
+            indicator: 'red'
+          });
         }
       });
     };
@@ -449,8 +518,7 @@ ordercapture_ocr.process_dialog = {
           qty: item.qty,
           rate: item.landing_rate,
           gst: item.gst,
-          totalAmount: item.totalAmount,
-          poRate: item.poRate
+          totalAmount: item.totalAmount
         })),
         totals: {
           totalItemQty: d.get_value('total_item_qty'),
@@ -535,23 +603,40 @@ ordercapture_ocr.process_dialog = {
           rate: item.landing_rate,
           gst: item.gst,
           totalAmount: item.totalAmount
-          
         })),
         totals: {
           totalItemQty: d.get_value('total_item_qty'),
           itemGrandTotal: d.get_value('item_grand_total')
         }
       };
-
       frappe.call({
         method: 'ordercapture_ocr.ordercapture_ocr.sales_order_api.create_sales_order',
         args: {
           response: sales_order_values
         },
         callback: (r) => {
-            const sales_order_name = r.message;
-            d.$wrapper.find('.post-sales-order-btn').hide();
-            frappe.set_route('Form', 'Sales Order', sales_order_name);
+          const sales_order_name = r.message;
+
+            // Update OCR Document Processor
+          frappe.call({
+            method: 'frappe.client.set_value',
+            args: {
+              doctype: 'OCR Document Processor',
+              name: d.get_value('current_id'),
+              fieldname: {
+                'status': 'Completed',
+                'sales_order': sales_order_name
+              }
+            },
+            callback: () => {
+              d.$wrapper.find('.post-sales-order-btn').hide();
+              frappe.show_alert({
+                message: 'Sales Order created and OCR Document updated',
+                indicator: 'green'
+              });
+              frappe.set_route('Form', 'Sales Order', sales_order_name);
+            }
+          });
         }
       });
     };
