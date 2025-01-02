@@ -66,9 +66,14 @@ ordercapture_ocr.components.Dashboard = {
 						  </td>
 						  <td>{{ order.id }}</td>
 						  <td>
-							<a href="/app/sales-order/{{ order.sales }}" class="link-to-form">
+						  	<button 
+								v-if="order.sales"
+								@click="openSalesOrder(order.sales)"
+								class="btn btn-link p-0 text-primary link-underline-primary"
+							>
 								{{ order.sales }}
-							</a>
+							</button>
+							<span v-else class="text-muted">-</span>
 						  </td>
 						  <td>
 							<span class="indicator-pill" :class="{
@@ -131,6 +136,9 @@ ordercapture_ocr.components.Dashboard = {
         }
       },
       methods: {
+		openSalesOrder(salesId) {
+			window.open(`/app/sales-order/${salesId}`, '_blank')
+		},
 		showProcessDialog(docId) {
 			if(!this.selectedCustomer) {
 				frappe.msgprint('No Document to process!');

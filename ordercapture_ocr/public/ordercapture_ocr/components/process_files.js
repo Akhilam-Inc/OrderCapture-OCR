@@ -95,7 +95,7 @@ ordercapture_ocr.process_dialog = {
               <button class="btn btn-primary w-50 mb-2 mr-2" onclick="cur_dialog.events.view_file()">
                 View File
               </button>
-               <button class="btn btn-primary w-50 mb-2 mr-2" onclick="cur_dialog.events.fetch_price_list_rate()">
+               <button class="btn btn-primary w-50 mb-2 mr-2 fetch_price_list_rate" onclick="cur_dialog.events.fetch_price_list_rate()">
                 Fetch Price List Rate
               </button>
             </div>
@@ -292,6 +292,10 @@ ordercapture_ocr.process_dialog = {
 
           // Hide Post Sales Order button if sales_order exists
           if (doc.sales_order) {
+            d.set_df_property('post_sales_order', {
+              read_only: true,
+              hidden: true
+            });
             d.$wrapper.find('.post-sales-order-btn').hide();
           }
           
@@ -311,6 +315,7 @@ ordercapture_ocr.process_dialog = {
           }else{
             d.$wrapper.find('.post-sales-order-btn').hide();
             d.$wrapper.find('.save-changes-btn').hide();
+            d.$wrapper.find('.fetch_price_list_rate').hide();
           }
 
           fetch_customer_details(d);
@@ -549,7 +554,7 @@ ordercapture_ocr.process_dialog = {
 
     const setTableFromProcessedJson = (d, processed_json) => {
       const processed_data = JSON.parse(processed_json);
-      
+
       d.fields_dict.items.df.data = [];
       d.fields_dict.items.grid.data = [];
       d.fields_dict.items.grid.make_head();
@@ -645,11 +650,18 @@ ordercapture_ocr.process_dialog = {
               }
             },
             callback: () => {
-              d.$wrapper.find('.post-sales-order-btn').hide();
+              // Refresh the current document
+              loadDocument(d.get_value('current_id'));
+              
               frappe.show_alert({
                 message: 'Sales Order created and OCR Document updated',
                 indicator: 'green'
               });
+              d.set_df_property('post_sales_order', {
+                read_only: true,
+                hidden: true
+              });
+              d.$wrapper.find('.post-sales-order-btn').hide();
               // frappe.set_route('Form', 'Sales Order', sales_order_name);
             }
           });
@@ -660,6 +672,12 @@ ordercapture_ocr.process_dialog = {
     d.events.fetch_price_list_rate = function() {
       const customer = d.get_value('customer');
       const items = d.fields_dict.items.grid.data;
+      if(items.length  == 0){
+        frappe.show_alert({
+          message: 'No items, process files first...',
+          indicator: 'red'
+        });
+      }
     
       items.forEach((item, idx) => {
         frappe.call({
