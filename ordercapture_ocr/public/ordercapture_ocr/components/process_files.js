@@ -95,8 +95,11 @@ ordercapture_ocr.process_dialog = {
               <button class="btn btn-primary w-50 mb-2 mr-2" onclick="cur_dialog.events.view_file()">
                 View File
               </button>
-              </div>
-              <div class="action-buttons d-flex flex-column gap-2 mb-3 align-items-end">
+               <button class="btn btn-primary w-50 mb-2 mr-2" onclick="cur_dialog.events.fetch_price_list_rate()">
+                Fetch Price List Rate
+              </button>
+            </div>
+            <div class="action-buttons d-flex flex-column gap-2 mb-3 align-items-end">
                 <button class="btn btn-primary w-50 mb-2 mr-2" onclick="cur_dialog.events.create_address()">
                   Create New Address
                 </button>
@@ -232,12 +235,6 @@ ordercapture_ocr.process_dialog = {
             fieldname: 'col_4'
         },
         {
-          fieldtype: 'Data',
-          fieldname: 'total_grand_total',
-          label: 'Total Grand Total',
-          read_only: 1
-        },
-        {
             fieldtype: 'Column Break',
             fieldname: 'col_4'
         },
@@ -292,6 +289,11 @@ ordercapture_ocr.process_dialog = {
           d.set_value('current_id', doc.name);
           d.set_value('status', doc.status);
           d.set_value('file_path', `File ${currentIndex + 1}: ${doc.file_path}`); 
+
+          // Hide Post Sales Order button if sales_order exists
+          if (doc.sales_order) {
+            d.$wrapper.find('.post-sales-order-btn').hide();
+          }
           
           // Update process file button text
           const processBtn = d.$wrapper.find('.process-file-btn');
@@ -634,12 +636,56 @@ ordercapture_ocr.process_dialog = {
                 message: 'Sales Order created and OCR Document updated',
                 indicator: 'green'
               });
-              frappe.set_route('Form', 'Sales Order', sales_order_name);
+              // frappe.set_route('Form', 'Sales Order', sales_order_name);
             }
           });
         }
       });
     };
+
+    d.events.fetch_price_list_rate = function() {
+      const customer = d.get_value('customer');
+      const items = d.fields_dict.items.grid.data;
+    
+      items.forEach((item, idx) => {
+        frappe.call({
+          method: 'frappe.client.get_value',
+          args: {
+            doctype: 'Item Price',
+            filters: {
+              item_code: item.itemCode,
+              selling: 1,
+              customer: customer
+            },
+            fieldname: ['price_list_rate']
+          },
+          callback: (r) => {
+            if (r.message) {
+              const price_list_rate = r.message.price_list_rate;
+              item.plRate = price_list_rate;
+              
+              // Highlight row if rates are different
+              if (price_list_rate !== item.rate) {
+                d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
+              } else {
+                d.fields_dict.items.grid.grid_rows[idx].row.removeClass('highlight-red');
+              }
+              
+              d.fields_dict.items.grid.refresh();
+            }
+          }
+        });
+      });
+    };
+
+    // Add this near the start of the file
+    frappe.dom.set_style(`
+      .highlight-red {
+        background-color: #ffe6e6 !important;
+      }
+    `);
+
+    
     
     d.show();
     d.$wrapper.find('.modal-dialog').css('max-width', '80%');

@@ -20,7 +20,8 @@
   {
    "fieldname": "customer_item_code",
    "fieldtype": "Data",
-   "label": "Customer Item Code"
+   "label": "Customer Item Code",
+   "unique": 1
   },
   {
    "fieldname": "customer",
@@ -31,7 +32,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-12-23 13:10:59.592621",
+ "modified": "2025-01-01 19:45:20.208331",
  "modified_by": "Administrator",
  "module": "OrderCapture OCR",
  "name": "Customer Item Code Mapping",
