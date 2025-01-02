@@ -549,7 +549,6 @@ ordercapture_ocr.process_dialog = {
 
     const setTableFromProcessedJson = (d, processed_json) => {
       const processed_data = JSON.parse(processed_json);
-
       
       d.fields_dict.items.df.data = [];
       d.fields_dict.items.grid.data = [];
@@ -562,8 +561,6 @@ ordercapture_ocr.process_dialog = {
         d.$wrapper.find('.post-sales-order-btn').hide();
         d.$wrapper.find('.save-changes-btn').hide();
       }
-
-      
 
       d.fields_dict.items.grid.refresh();
       // Add rows from processed_json
@@ -578,6 +575,23 @@ ordercapture_ocr.process_dialog = {
       d.fields_dict.items.grid.refresh();
       d.set_value('total_item_qty', processed_data.totals.totalItemQty);
       d.set_value('item_grand_total', processed_data.totals.itemGrandTotal);
+
+      // Calculate total net amount (sum of rates without taxes)
+      const total_net_amount = processed_data.orderDetails.reduce((sum, item) => {
+        return sum + (item.rate * item.qty);
+      }, 0);
+
+      // Set the total net amount field
+      d.set_value('total_net_amount', total_net_amount);
+
+      // Calculate total taxes
+      const total_taxes = processed_data.orderDetails.reduce((sum, item) => {
+        const gst_value = parseFloat(item.gst) || 0;
+        return sum + ((item.rate * item.qty * gst_value) / 100);
+      }, 0);
+
+      // Set the total taxes field
+      d.set_value('total_taxes', total_taxes);
 
     };
 
@@ -602,7 +616,7 @@ ordercapture_ocr.process_dialog = {
           itemCode: item.itemCode,
           itemName: item.itemName,
           qty: item.qty,
-          rate: item.landing_rate,
+          rate: item.rate,
           gst: item.gst,
           totalAmount: item.totalAmount
         })),
