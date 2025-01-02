@@ -65,7 +65,11 @@ ordercapture_ocr.components.Dashboard = {
 							</button>
 						  </td>
 						  <td>{{ order.id }}</td>
-						  <td>{{ order.sales }}</td>
+						  <td>
+							<a href="/app/sales-order/{{ order.sales }}" class="link-to-form">
+								{{ order.sales }}
+							</a>
+						  </td>
 						  <td>
 							<span class="indicator-pill" :class="{
 								'red': order.status === 'Failed',
