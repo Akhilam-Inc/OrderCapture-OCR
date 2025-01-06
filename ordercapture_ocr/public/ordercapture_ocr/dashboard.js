@@ -16,11 +16,12 @@ ordercapture_ocr.components.Dashboard = {
 			  </div>
 			  <div class="col-md-4 d-flex justify-content-end">
 				<div class="widget">
+				
 				  <div class="widget-head d-flex justify-content-end mb-3">
-					<button @click="uploadFile" class="btn btn-primary">
-						Upload Document
-						</button>
+					
+					<file-uploader @file-uploaded="handleFileUpload" class="btn btn-primary"/>
 					</div>
+
 				  <div class="widget-body d-flex justify-content-end mb-3 flex-column">
 					<div class="widget-title">Allow file type .pdf, .xls, .csv</div>
 					<div v-if="uploadStatus" class="mt-2">
@@ -135,6 +136,23 @@ ordercapture_ocr.components.Dashboard = {
           selectedCustomer: '',
         }
       },
+	  components: {
+        'file-uploader': {
+            template: `
+                <div class="file-uploader">
+                    <input type="file" @change="onFileChange" accept=".pdf,.csv,.xlsx,.xls"">
+                </div>
+            `,
+            methods: {
+                onFileChange(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        this.$emit('file-uploaded', file);
+                    }
+                }
+            }
+        }
+    },
       methods: {
 		openSalesOrder(salesId) {
 			window.open(`/app/sales-order/${salesId}`, '_blank')
@@ -169,39 +187,65 @@ ordercapture_ocr.components.Dashboard = {
 			  }
 			});
 		},
-       
-        uploadFile() {
+		handleFileUpload(file) {
 			if(!this.selectedCustomer) {
 				frappe.msgprint('Please select a customer');
 				return;
 			}
-          new frappe.ui.FileUploader({
-            doctype: 'OCR Document Processor',
-            folder: 'Home/OCR',
-			restrictions: {
-				allowed_file_types: ['.pdf', '.csv', '.xls', '.xlsx']
-			},
-            on_success: (file) => {
-				frappe.call({
-					method: 'frappe.client.insert',
-					args: {
-					  doc: {
-						doctype: 'OCR Document Processor',
-						file_path: file.file_url,
-						customer: this.selectedCustomer,
-						status: 'Pending'
-					  }
-					},
-					callback: (r) => {
-					//   this.uploadStatus = file.file_url+" File uploaded successfully";
-					  this.uploadStatus = 'File uploaded and document created successfully';
-					  this.fetchStats();
-					  this.fetchRecentOrders();
-					}
-				  });
-				}
+
+            const form = new FormData();
+            form.append('file', file);
+            form.append('filename', file.name);
+			// form.append('attached_to_name', frappe.session.user);
             
-          });
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/method/ordercapture_ocr.api.process_file', true);
+            xhr.setRequestHeader('X-Frappe-CSRF-Token', frappe.csrf_token);
+            
+			// Store the reference to selectedCustomer
+			const selectedCustomer = this.selectedCustomer;
+			const vm = this; // Store Vue instance reference
+
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.message) {
+						console.log(selectedCustomer)
+                        frappe.call({
+							method: 'frappe.client.insert',
+							args: {
+							  doc: {
+								doctype: 'OCR Document Processor',
+								file_path: response.message.file_url,
+								customer: selectedCustomer,
+								date: new Date().toISOString().split('T')[0],
+								status: 'Pending'
+							  }
+							},
+							callback: (r) => {
+								frappe.msgprint({
+									title: 'Success',
+									message: 'File uploaded and document created successfully',
+									indicator: 'green'
+								  });
+							  	vm.uploadStatus = 'File uploaded and document created successfully';
+								vm.fetchRecentOrders();
+							}, error: (r) => {
+								console.log(error)
+							}
+							
+						})
+                    }
+                } else {
+                    frappe.throw('Error uploading file');
+                }
+            };
+            
+            xhr.onerror = function() {
+                frappe.throw('Error uploading file');
+            };
+            
+            xhr.send(form);
         },
 		viewOrder(orderId) {
 			frappe.db.get_doc('OCR Document Processor', orderId)
@@ -315,8 +359,9 @@ ordercapture_ocr.components.Dashboard = {
       
       mounted() {
         this.setupCustomerField();
-        this.fetchStats();
+        // this.fetchStats();
         this.fetchRecentOrders();
+		// this.uploadFile()
       }
 };
 

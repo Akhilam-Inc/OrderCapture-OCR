@@ -4,17 +4,21 @@ frappe.pages['ordercapture-ocr'].on_page_load = function(wrapper) {
         title: 'Order Capture OCR',
         single_column: true
     });
+   
 	let app_container = $('<div id="ocr-dashboard">').appendTo(page.main);
-    frappe.require([
-		'/assets/ordercapture_ocr/js/vue.js',
-        '/assets/ordercapture_ocr/ordercapture_ocr/dashboard.js'
-    ], () => {
-        new Vue({
-            el: '#ocr-dashboard',
-            components: {
-                'ocr-dashboard': ordercapture_ocr.components.Dashboard
-            },
-            template: '<ocr-dashboard/>'
+    // Load dependencies sequentially
+    frappe.require('/assets/ordercapture_ocr/js/vue.js')
+        .then(() => {
+            return frappe.require('/assets/ordercapture_ocr/ordercapture_ocr/dashboard.js');
+        })
+        .then(() => {
+            new Vue({
+                el: '#ocr-dashboard',
+                components: {
+                    'ocr-dashboard': ordercapture_ocr.components.Dashboard
+                },
+                template: '<ocr-dashboard/>'
+            });
         });
-    });
+    
 }
