@@ -199,7 +199,9 @@ ordercapture_ocr.components.Dashboard = {
 				frappe.msgprint('No Document to process!');
 				return;
 			}
+			this.fetchRecentOrders();
 			ordercapture_ocr.process_dialog.show(docId);
+    
 		},
         fetchStats() {
         },
@@ -453,9 +455,16 @@ ordercapture_ocr.components.Dashboard = {
         this.setupCustomerField();
         // this.fetchStats();
         this.fetchRecentOrders();
-		if (frappe.boot.versions.frappe >= '15.0.0') {
-            this.initializeV15Uploader();
-        }
+
+		// Make fetchRecentOrders accessible globally
+		if (!window.ocr_dashboard) {
+			window.ocr_dashboard = {};
+		}
+		window.ocr_dashboard.fetchRecentOrders = this.fetchRecentOrders;
+		
+		// if (frappe.boot.versions.frappe >= '15.0.0') {
+        //     this.initializeV15Uploader();
+        // }
 	  }
 };
 

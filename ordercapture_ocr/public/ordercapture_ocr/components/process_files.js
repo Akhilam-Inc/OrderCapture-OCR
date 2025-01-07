@@ -285,8 +285,12 @@ ordercapture_ocr.process_dialog = {
       },
 
     };
+    d.$wrapper.on('hidden.bs.modal', function() {
+      window.ocr_dashboard.fetchRecentOrders();
+    });
 
     const loadDocument = (docId) => {
+      // frappe.views.OCRDashboard.fetchRecentOrders()
       frappe.db.get_doc('OCR Document Processor', docId)
         .then(doc => {        
           d.set_value('customer', doc.customer); 
@@ -294,8 +298,16 @@ ordercapture_ocr.process_dialog = {
           d.set_value('status', doc.status);
           d.set_value('file_path', `File ${currentIndex + 1}: ${doc.file_path}`); 
 
+          if(doc.sales_order){
+            // console.log('Sales Order Ref: ' + doc.sales_order);
+            d.set_value('sales_order_ref', doc.sales_order);
+            d.set_df_property('sales_order_ref', 'hidden', 0);
+            d.set_df_property('post_sales_order', 'hidden', 1);
+          }
+
           // Hide Post Sales Order button if sales_order exists
           if (doc.sales_order) {
+            refreshPageInBackground();
             d.set_df_property('post_sales_order', {
               read_only: true,
               hidden: true
@@ -419,18 +431,30 @@ ordercapture_ocr.process_dialog = {
       `;
       $('body').append(loader);
 
+      // Check file extension
+      const fileExtension = actual_file_path.split('.').pop().toLowerCase();
+      const method = fileExtension === 'pdf' ? 
+        'ordercapture_ocr.api.get_ocr_details' : 
+        'ordercapture_ocr.api.extract_excel_data';
+
+
     
       frappe.call({
-        method: 'ordercapture_ocr.api.get_ocr_details',
+        method: method,
         args: {
           file_path: actual_file_path
         },
+        // callback: (r) => {
+        //   d.$wrapper.css('filter', '');
+        //   $('.ocr-loader').remove();
+        //   console.log(r.message)
+        // },
         callback: (r) => {
           // Remove blur and loader
           d.$wrapper.css('filter', '');
           $('.ocr-loader').remove();
           if (r.message) {
-            console.log(r.message)
+            // console.log(r.message)
             // Create items if they don't exist
             const createItemPromises = r.message.orderDetails.map(item => {
               return new Promise((resolve) => {
@@ -485,6 +509,7 @@ ordercapture_ocr.process_dialog = {
             });
           }
         },
+        
         error: (r) => {
           // Remove loader on error
           d.$wrapper.css('filter', '');
@@ -659,10 +684,9 @@ ordercapture_ocr.process_dialog = {
 
               // Background refresh
               refreshPageInBackground();
+
               d.set_value('sales_order_ref', sales_order_name);
-              d.set_df_property('sales_order_ref', {
-                hidden: 0
-              });
+              d.set_df_property('sales_order_ref', 'hidden', 0)
 
               frappe.show_alert({
                 message: 'Sales Order created and OCR Document updated',
@@ -706,19 +730,21 @@ ordercapture_ocr.process_dialog = {
             // Step 2: Get price list rates for all items
             items.forEach((item, idx) => {
               frappe.call({
-                method: 'erpnext.stock.get_item_details.get_price_list_rate_for',
+                method: 'erpnext.stock.get_item_details.get_item_details',
                 args: {
                   args: {
                     item_code: item.itemCode,
                     price_list: price_list,
-                    customer: customer
+                    customer: customer,
+                    company: frappe.defaults.get_default('company'),
+                    doctype: 'Sales Order'
                   }
                 },
                 callback: (result) => {
                   if(result.message) {
                     // Update rate with price list rate
-                    item.rate = result.message;
-                    item.plRate = result.message;
+                    item.rate = result.message.price_list_rate;
+                    item.plRate = result.message.price_list_rate;
                     
                     // Recalculate total amount
                     item.totalAmount = item.rate * item.qty;
