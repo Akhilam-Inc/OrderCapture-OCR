@@ -81,6 +81,14 @@ ordercapture_ocr.process_dialog = {
           read_only: 1
         },
         {
+          fieldtype: 'Link',
+          fieldname: 'sales_order_ref',
+          label: 'Sales Order Ref',
+          read_only: 1,
+          hidden: 1,
+          options: 'Sales Order',
+        },
+        {
           fieldtype: 'Column Break',
           fieldname: 'col_2'
         },
@@ -235,15 +243,11 @@ ordercapture_ocr.process_dialog = {
             fieldname: 'col_4'
         },
         {
-            fieldtype: 'Column Break',
-            fieldname: 'col_4'
-        },
-        {
             fieldtype: 'HTML',
             fieldname: 'post_sales_order',
             options: `
               <div class="action-buttons d-flex flex-row gap-2 mb-3 justify-content-end ">
-                <button class="btn btn-primary py-2 mt-4 w-50 mr-2 post-sales-order-btn" onclick="cur_dialog.events.post_sales_order()">
+                <button class="btn btn-primary py-2 mt-4 w-100 mr-2 post-sales-order-btn" onclick="cur_dialog.events.post_sales_order()">
                   Post Sales Order
                 </button>
               </div>
@@ -652,7 +656,14 @@ ordercapture_ocr.process_dialog = {
             callback: () => {
               // Refresh the current document
               loadDocument(d.get_value('current_id'));
-              
+
+              // Background refresh
+              refreshPageInBackground();
+              d.set_value('sales_order_ref', sales_order_name);
+              d.set_df_property('sales_order_ref', {
+                hidden: 0
+              });
+
               frappe.show_alert({
                 message: 'Sales Order created and OCR Document updated',
                 indicator: 'green'
@@ -672,44 +683,63 @@ ordercapture_ocr.process_dialog = {
     d.events.fetch_price_list_rate = function() {
       const customer = d.get_value('customer');
       const items = d.fields_dict.items.grid.data;
-      if(items.length  == 0){
+    
+      if(items.length == 0) {
         frappe.show_alert({
           message: 'No items, process files first...',
           indicator: 'red'
         });
+        return;
       }
     
-      items.forEach((item, idx) => {
-        frappe.call({
-          method: 'frappe.client.get_value',
-          args: {
-            doctype: 'Item Price',
-            filters: {
-              item_code: item.itemCode,
-              selling: 1,
-              customer: customer
-            },
-            fieldname: ['price_list_rate']
-          },
-          callback: (r) => {
-            if (r.message) {
-              const price_list_rate = r.message.price_list_rate;
-              item.plRate = price_list_rate;
-              
-              // Highlight row if rates are different
-              if (price_list_rate !== item.rate) {
-                d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
-              } else {
-                d.fields_dict.items.grid.grid_rows[idx].row.removeClass('highlight-red');
-              }
-              
-              d.fields_dict.items.grid.refresh();
-            }
+      // Step 1: Get customer's price list
+      frappe.call({
+        method: 'erpnext.accounts.party.get_party_details',
+        args: {
+          party: customer,
+          party_type: 'Customer'
+        },
+        callback: (r) => {
+          if(r.message) {
+            const price_list = r.message.selling_price_list || 'Standard Selling';
+            
+            // Step 2: Get price list rates for all items
+            items.forEach((item, idx) => {
+              frappe.call({
+                method: 'erpnext.stock.get_item_details.get_price_list_rate_for',
+                args: {
+                  args: {
+                    item_code: item.itemCode,
+                    price_list: price_list,
+                    customer: customer
+                  }
+                },
+                callback: (result) => {
+                  if(result.message) {
+                    // Update rate with price list rate
+                    item.rate = result.message;
+                    item.plRate = result.message;
+                    
+                    // Recalculate total amount
+                    item.totalAmount = item.rate * item.qty;
+                    
+                    // Highlight if rates are different from landing rate
+                    if(item.rate !== item.landing_rate) {
+                      d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
+                    } else {
+                      d.fields_dict.items.grid.grid_rows[idx].row.removeClass('highlight-red');
+                    }
+                    
+                    d.fields_dict.items.grid.refresh();
+                  }
+                }
+              });
+            });
           }
-        });
+        }
       });
     };
-
+    
     // Add this near the start of the file
     frappe.dom.set_style(`
       .highlight-red {
@@ -724,3 +754,19 @@ ordercapture_ocr.process_dialog = {
 
   }
 };
+
+
+function refreshPageInBackground() {
+  // Create a hidden iframe
+  let iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = window.location.href;
+  
+  // Remove iframe after load
+  iframe.onload = () => {
+    document.body.removeChild(iframe);
+  };
+  
+  // Add to document
+  document.body.appendChild(iframe);
+}
