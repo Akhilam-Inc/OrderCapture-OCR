@@ -4,8 +4,6 @@ from ordercapture_ocr.ordercapture_ocr.ocr_processor.pdf_to_table import pdf_tab
 
 import frappe
 from frappe import _
-import pandas as pd
-import PyPDF2
 import io
 
 @frappe.whitelist()
