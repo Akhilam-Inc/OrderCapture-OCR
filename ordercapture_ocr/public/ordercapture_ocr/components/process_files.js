@@ -725,8 +725,10 @@ ordercapture_ocr.process_dialog = {
         },
         callback: (r) => {
           if(r.message) {
+            console.log(r.message);
             const price_list = r.message.selling_price_list || 'Standard Selling';
-            
+            const price_list_currency = r.message.price_list_currency || 'INR';
+            console.log('Price List: ' + price_list);
             // Step 2: Get price list rates for all items
             items.forEach((item, idx) => {
               frappe.call({
@@ -737,24 +739,26 @@ ordercapture_ocr.process_dialog = {
                     price_list: price_list,
                     customer: customer,
                     company: frappe.defaults.get_default('company'),
-                    doctype: 'Sales Order'
+                    doctype: 'Sales Order',
+                    currency: price_list_currency,
+                    price_list_currency: price_list_currency,
+                    plc_conversion_rate: 1
                   }
                 },
                 callback: (result) => {
+                  console.log(result);
                   if(result.message) {
                     // Update rate with price list rate
-                    item.rate = result.message.price_list_rate;
+                    // item.rate = result.message.price_list_rate;
                     item.plRate = result.message.price_list_rate;
                     
                     // Recalculate total amount
-                    item.totalAmount = item.rate * item.qty;
+                    // item.totalAmount = item.rate * item.qty;
                     
                     // Highlight if rates are different from landing rate
-                    if(item.rate !== item.landing_rate) {
+                    if(item.rate !== item.plRate) {
                       d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
-                    } else {
-                      d.fields_dict.items.grid.grid_rows[idx].row.removeClass('highlight-red');
-                    }
+                    } 
                     
                     d.fields_dict.items.grid.refresh();
                   }
