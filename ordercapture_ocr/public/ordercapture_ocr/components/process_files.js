@@ -762,6 +762,7 @@ ordercapture_ocr.process_dialog = {
         },
         callback: (r) => {
           if(r.message) {
+            console.log(r.message);
             const price_list = r.message.selling_price_list || 'Standard Selling';
             const price_list_currency = r.message.price_list_rate || "INR";
             
@@ -783,9 +784,14 @@ ordercapture_ocr.process_dialog = {
                   }
                 },
                 callback: (result) => {
+                  console.log(result);
                   if(result.message) {
                     // Update rate with price list rate
+                    // item.rate = result.message.price_list_rate;
                     item.plRate = result.message.price_list_rate;
+                    
+                    // Recalculate total amount
+                    // item.totalAmount = item.rate * item.qty;
                     
                     // Highlight if rates are different from landing rate
                     if(item.rate !== item.plRate ) {
