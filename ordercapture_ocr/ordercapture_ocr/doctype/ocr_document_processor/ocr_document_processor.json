@@ -62,7 +62,6 @@
    "options": "Customer"
   },
   {
-   "default": "Today",
    "fieldname": "date",
    "fieldtype": "Date",
    "label": "Date"
@@ -80,7 +79,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-12-27 18:37:09.432304",
+ "modified": "2025-01-07 01:50:18.559587",
  "modified_by": "Administrator",
  "module": "OrderCapture OCR",
  "name": "OCR Document Processor",

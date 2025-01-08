@@ -16,11 +16,18 @@ ordercapture_ocr.components.Dashboard = {
 			  </div>
 			  <div class="col-md-4 d-flex justify-content-end">
 				<div class="widget">
+				
 				  <div class="widget-head d-flex justify-content-end mb-3">
-					<button @click="uploadFile" class="btn btn-primary">
-						Upload Document
+					<div v-if="frappeVersion >= 15">
+						<button class="btn btn-primary" @click="initializeV15Uploader">
+							Upload Documents
 						</button>
 					</div>
+					<div v-else>
+						<file-uploader @file-uploaded="handleFileUpload" class="btn btn-primary"/>
+					</div>
+				  </div>
+
 				  <div class="widget-body d-flex justify-content-end mb-3 flex-column">
 					<div class="widget-title">Allow file type .pdf, .xls, .csv</div>
 					<div v-if="uploadStatus" class="mt-2">
@@ -133,8 +140,56 @@ ordercapture_ocr.components.Dashboard = {
           recentOrders: [],
           uploadStatus: '',
           selectedCustomer: '',
+		  uploadProgress: 0,
+          uploading: false
         }
       },
+	  components: {
+        'file-uploader': {
+            template: `
+                <div class="file-uploader-container">
+                    <div class="file-uploader">
+                        <input 
+                            type="file" 
+                            @change="onFileChange" 
+                            accept=".pdf,.csv,.xlsx,.xls"
+                            class="form-control"
+                            multiple
+                        >
+                    </div>
+                    <div v-if="$parent.uploading" class="progress mt-2">
+                        <div class="progress-bar" :style="{ width: $parent.uploadProgress + '%' }">
+                            {{$parent.uploadProgress}}%
+                        </div>
+                    </div>
+                </div>
+            `,
+            methods: {
+				onFileChange(e) {
+                    const files = e.target.files;
+                    if (files && files.length) {
+                        const validTypes = [
+                            'application/pdf',
+                            'text/csv',
+                            'application/vnd.ms-excel',
+                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                        ];
+                        
+                        const fileArray = Array.from(files);
+                        const validFiles = fileArray.filter(file => validTypes.includes(file.type));
+                        
+                        if (validFiles.length !== fileArray.length) {
+                            frappe.throw(__('Some files are not in supported format'));
+                            return;
+                        }
+                        
+                        this.$emit('file-uploaded', validFiles);
+                    }
+                }
+            
+            }
+        }
+    },
       methods: {
 		openSalesOrder(salesId) {
 			window.open(`/app/sales-order/${salesId}`, '_blank')
@@ -144,7 +199,9 @@ ordercapture_ocr.components.Dashboard = {
 				frappe.msgprint('No Document to process!');
 				return;
 			}
+			this.fetchRecentOrders();
 			ordercapture_ocr.process_dialog.show(docId);
+    
 		},
         fetchStats() {
         },
@@ -169,40 +226,87 @@ ordercapture_ocr.components.Dashboard = {
 			  }
 			});
 		},
-       
-        uploadFile() {
+
+		async handleFileUpload(files) {
 			if(!this.selectedCustomer) {
 				frappe.msgprint('Please select a customer');
 				return;
 			}
-          new frappe.ui.FileUploader({
-            doctype: 'OCR Document Processor',
-            folder: 'Home/OCR',
-			restrictions: {
-				allowed_file_types: ['.pdf', '.csv', '.xls', '.xlsx']
-			},
-            on_success: (file) => {
-				frappe.call({
-					method: 'frappe.client.insert',
-					args: {
-					  doc: {
-						doctype: 'OCR Document Processor',
-						file_path: file.file_url,
-						customer: this.selectedCustomer,
-						status: 'Pending'
-					  }
-					},
-					callback: (r) => {
-					//   this.uploadStatus = file.file_url+" File uploaded successfully";
-					  this.uploadStatus = 'File uploaded and document created successfully';
-					  this.fetchStats();
-					  this.fetchRecentOrders();
+			this.uploading = true;
+            this.uploadProgress = 0;
+
+			const totalFiles = files.length;
+            let completedFiles = 0;
+
+
+
+			for (const file of files) {
+                await this.handleFile(file);
+                completedFiles++;
+                this.uploadProgress = Math.round((completedFiles / totalFiles) * 100);
+            }
+
+            frappe.show_alert({
+                message: `Successfully uploaded ${totalFiles} files`,
+                indicator: 'green'
+            });
+			this.uploading = false;
+            this.uploadProgress = 0;
+            this.fetchRecentOrders();
+		},
+		handleFile(file) {
+			return new Promise((resolve, reject) => {
+				const form = new FormData();
+				form.append('file', file);
+				form.append('filename', file.name);
+				// form.append('attached_to_name', frappe.session.user);
+				
+				const xhr = new XMLHttpRequest();
+				xhr.open('POST', '/api/method/ordercapture_ocr.api.process_file', true);
+				xhr.setRequestHeader('X-Frappe-CSRF-Token', frappe.csrf_token);
+				
+				// Store the reference to selectedCustomer
+				const selectedCustomer = this.selectedCustomer;
+				const vm = this; // Store Vue instance reference
+
+				xhr.onload = function() {
+					if (xhr.status === 200) {
+						const response = JSON.parse(xhr.responseText);
+						if (response.message) {
+
+							frappe.call({
+								method: 'frappe.client.insert',
+								args: {
+								doc: {
+									doctype: 'OCR Document Processor',
+									file_path: response.message.file_url,
+									customer: selectedCustomer,
+									date: new Date().toISOString().split('T')[0],
+									status: 'Pending'
+								}
+								},
+								callback: (r) => {
+									resolve()
+									vm.fetchRecentOrders();
+								}, error: (r) => {
+									reject()
+
+								}
+								
+							})
+						}
+					} else {
+						frappe.throw('Error uploading file');
 					}
-				  });
-				}
-            
-          });
-        },
+				};
+				
+				xhr.onerror = function() {
+					frappe.throw('Error uploading file');
+				};
+				
+				xhr.send(form);
+			})
+		},
 		viewOrder(orderId) {
 			frappe.db.get_doc('OCR Document Processor', orderId)
 			  .then(doc => {
@@ -310,14 +414,58 @@ ordercapture_ocr.components.Dashboard = {
 					this.fetchRecentOrders();
 				});
 			});
-		}
+		},
+		initializeV15Uploader() {
+            const uploader = new frappe.ui.FileUploader({
+				doctype: 'OCR Document Processor',
+				folder: 'Home/OCR',
+				restrictions: {
+					allowed_file_types: ['.pdf', '.csv', '.xls', '.xlsx']
+				},
+				on_success: (file) => {
+					frappe.call({
+						method: 'frappe.client.insert',
+						args: {
+						doc: {
+							doctype: 'OCR Document Processor',
+							file_path: file.file_url,
+							customer: this.selectedCustomer,
+							date: frappe.datetime.now_date(),
+							status: 'Pending'
+						}
+						},
+						callback: (r) => {
+						//   this.uploadStatus = file.file_url+" File uploaded successfully";
+						this.uploadStatus = 'File uploaded and document created successfully';
+						this.fetchStats();
+						this.fetchRecentOrders();
+						}
+					});
+					}
+				
+			});
+        },
+
       },
+	  created(){
+		this.frappeVersion = window.frappe ? parseFloat(window.frappe.boot?.versions?.frappe || 0) : 0;  
+	  },
       
       mounted() {
         this.setupCustomerField();
-        this.fetchStats();
+        // this.fetchStats();
         this.fetchRecentOrders();
-      }
+
+		// Make fetchRecentOrders accessible globally
+		if (!window.ocr_dashboard) {
+			window.ocr_dashboard = {};
+		}
+		window.ocr_dashboard.fetchRecentOrders = this.fetchRecentOrders;
+		
+		// if (frappe.boot.versions.frappe >= '15.0.0') {
+        //     this.initializeV15Uploader();
+        // }
+	  }
 };
 
 Vue.component('ocr-dashboard', ordercapture_ocr.components.Dashboard);
