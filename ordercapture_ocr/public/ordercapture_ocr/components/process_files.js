@@ -70,6 +70,12 @@ ordercapture_ocr.process_dialog = {
         },
         {
           fieldtype: 'Data',
+          fieldname: 'po_number',
+          label: 'PO Number',
+          read_only: 1
+        },        
+        {
+          fieldtype: 'Data',
           fieldname: 'file_path',
           label: 'File Path',
           read_only: 1
@@ -303,17 +309,19 @@ ordercapture_ocr.process_dialog = {
             d.set_value('sales_order_ref', doc.sales_order);
             d.set_df_property('sales_order_ref', 'hidden', 0);
             d.set_df_property('post_sales_order', 'hidden', 1);
+            d.$wrapper.find('.post-sales-order-btn').hide();
+            refreshPageInBackground();
           }
 
           // Hide Post Sales Order button if sales_order exists
-          if (doc.sales_order) {
-            refreshPageInBackground();
-            d.set_df_property('post_sales_order', {
-              read_only: true,
-              hidden: true
-            });
-            d.$wrapper.find('.post-sales-order-btn').hide();
-          }
+          // if (doc.sales_order) {
+          //   refreshPageInBackground();
+          //   d.set_df_property('post_sales_order', {
+          //     read_only: true,
+          //     hidden: true
+          //   });
+          //   d.$wrapper.find('.post-sales-order-btn').hide();
+          // }
           
           // Update process file button text
           const processBtn = d.$wrapper.find('.process-file-btn');
@@ -328,6 +336,7 @@ ordercapture_ocr.process_dialog = {
 
           if (doc.processed_json) {
             setTableFromProcessedJson(d, doc.processed_json);
+            d.$wrapper.find('.fetch_price_list_rate').show();
           }else{
             d.$wrapper.find('.post-sales-order-btn').hide();
             d.$wrapper.find('.save-changes-btn').hide();
@@ -530,6 +539,7 @@ ordercapture_ocr.process_dialog = {
       window.open(`${actual_file_path}`, '_blank');
     };
 
+
     // Save Changes
     d.events.save_changes = function() {
       const items = d.fields_dict.items.grid.data;
@@ -552,8 +562,10 @@ ordercapture_ocr.process_dialog = {
           itemCode: item.itemCode,
           itemName: item.itemName,
           qty: item.qty,
-          rate: item.landing_rate,
+          rate: item.rate,
+          landing_rate: item.landing_rate,
           gst: item.gst,
+          plRate: item.plRate,
           totalAmount: item.totalAmount
         })),
         totals: {
@@ -572,7 +584,8 @@ ordercapture_ocr.process_dialog = {
         },
         callback: (r) => {
           setTableFromProcessedJson(d, r.message.processed_json)
-      
+          
+          d.$wrapper.find('.post-sales-order-btn').prop('disabled', false);
           frappe.show_alert({
             message: 'Changes saved successfully',
             indicator: 'green'
@@ -591,22 +604,47 @@ ordercapture_ocr.process_dialog = {
       if(processed_data.orderDetails.length > 0){
         d.$wrapper.find('.post-sales-order-btn').show();
         d.$wrapper.find('.save-changes-btn').show();
+        d.$wrapper.find('.fetch_price_list_rate').show();
       }else{
         d.$wrapper.find('.post-sales-order-btn').hide();
         d.$wrapper.find('.save-changes-btn').hide();
+        d.$wrapper.find('.fetch_price_list_rate').hide();
       }
 
       d.fields_dict.items.grid.refresh();
+     
       // Add rows from processed_json
       processed_data.orderDetails.forEach(item => {
         let row = d.fields_dict.items.df.data;
         d.fields_dict.items.grid.add_new_row();
+        const currentIndex = d.fields_dict.items.df.data.length - 1;
         row = d.fields_dict.items.df.data[d.fields_dict.items.df.data.length - 1];
         Object.assign(row, item);
+
+        // // Add rate comparison and highlighting
+        
+        if(row.rate !== parseInt(row.plRate)) {
+          d.fields_dict.items.grid.grid_rows[currentIndex].row.addClass('highlight-red');
+        }
       });
 
       // Refresh grid and set totals
       d.fields_dict.items.grid.refresh();
+      // Set initial data and bind change handler
+      initial_table_data = JSON.stringify(d.fields_dict.items.grid.data);
+
+
+      d.fields_dict.items.grid.wrapper.off('change').on('change', () => {
+        let current_table_data = JSON.stringify(d.fields_dict.items.grid.data);
+
+        if (current_table_data !== initial_table_data) {
+          d.$wrapper.find('.post-sales-order-btn').prop('disabled', true);
+          d.$wrapper.find('.save-changes-btn').show();
+        } else {
+          d.$wrapper.find('.post-sales-order-btn').prop('disabled', false);
+        }
+      });
+
       d.set_value('total_item_qty', processed_data.totals.totalItemQty);
       d.set_value('item_grand_total', processed_data.totals.itemGrandTotal);
 
@@ -697,7 +735,6 @@ ordercapture_ocr.process_dialog = {
                 hidden: true
               });
               d.$wrapper.find('.post-sales-order-btn').hide();
-              // frappe.set_route('Form', 'Sales Order', sales_order_name);
             }
           });
         }
@@ -726,6 +763,7 @@ ordercapture_ocr.process_dialog = {
         callback: (r) => {
           if(r.message) {
             const price_list = r.message.selling_price_list || 'Standard Selling';
+            const price_list_currency = r.message.price_list_rate || "INR";
             
             // Step 2: Get price list rates for all items
             items.forEach((item, idx) => {
@@ -737,23 +775,24 @@ ordercapture_ocr.process_dialog = {
                     price_list: price_list,
                     customer: customer,
                     company: frappe.defaults.get_default('company'),
-                    doctype: 'Sales Order'
+                    doctype: 'Sales Order',
+                    price_list_currency: price_list_currency,
+                    conversion_rate: 1,
+                    currency: price_list_currency,
+                    // plc_conversion_rate: 1
                   }
                 },
                 callback: (result) => {
                   if(result.message) {
                     // Update rate with price list rate
-                    item.rate = result.message.price_list_rate;
                     item.plRate = result.message.price_list_rate;
                     
-                    // Recalculate total amount
-                    item.totalAmount = item.rate * item.qty;
-                    
                     // Highlight if rates are different from landing rate
-                    if(item.rate !== item.landing_rate) {
+                    if(item.rate !== item.plRate ) {
                       d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
-                    } else {
-                      d.fields_dict.items.grid.grid_rows[idx].row.removeClass('highlight-red');
+                    }else{
+                      d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-white');
+
                     }
                     
                     d.fields_dict.items.grid.refresh();
@@ -770,6 +809,9 @@ ordercapture_ocr.process_dialog = {
     frappe.dom.set_style(`
       .highlight-red {
         background-color: #ffe6e6 !important;
+      }
+        .highlight-white {
+        background-color: #fff !important;
       }
     `);
 
