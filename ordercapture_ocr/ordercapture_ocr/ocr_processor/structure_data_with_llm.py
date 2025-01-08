@@ -13,6 +13,10 @@ def parse_purchase_order_with_llm(text_content):
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "orderNumber":{
+                        "type": "string",
+                        "description": "Unique code identifying the purchase order."
+                    },
                     "Customer": {
                         "type": "object",
                         "properties": {
