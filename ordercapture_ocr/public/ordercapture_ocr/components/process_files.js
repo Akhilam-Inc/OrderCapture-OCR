@@ -70,6 +70,12 @@ ordercapture_ocr.process_dialog = {
         },
         {
           fieldtype: 'Data',
+          fieldname: 'po_number',
+          label: 'PO Number',
+          read_only: 1
+        },        
+        {
+          fieldtype: 'Data',
           fieldname: 'file_path',
           label: 'File Path',
           read_only: 1
@@ -303,17 +309,19 @@ ordercapture_ocr.process_dialog = {
             d.set_value('sales_order_ref', doc.sales_order);
             d.set_df_property('sales_order_ref', 'hidden', 0);
             d.set_df_property('post_sales_order', 'hidden', 1);
+            d.$wrapper.find('.post-sales-order-btn').hide();
+            refreshPageInBackground();
           }
 
           // Hide Post Sales Order button if sales_order exists
-          if (doc.sales_order) {
-            refreshPageInBackground();
-            d.set_df_property('post_sales_order', {
-              read_only: true,
-              hidden: true
-            });
-            d.$wrapper.find('.post-sales-order-btn').hide();
-          }
+          // if (doc.sales_order) {
+          //   refreshPageInBackground();
+          //   d.set_df_property('post_sales_order', {
+          //     read_only: true,
+          //     hidden: true
+          //   });
+          //   d.$wrapper.find('.post-sales-order-btn').hide();
+          // }
           
           // Update process file button text
           const processBtn = d.$wrapper.find('.process-file-btn');
@@ -328,6 +336,7 @@ ordercapture_ocr.process_dialog = {
 
           if (doc.processed_json) {
             setTableFromProcessedJson(d, doc.processed_json);
+            d.$wrapper.find('.fetch_price_list_rate').show();
           }else{
             d.$wrapper.find('.post-sales-order-btn').hide();
             d.$wrapper.find('.save-changes-btn').hide();
@@ -435,26 +444,19 @@ ordercapture_ocr.process_dialog = {
       const fileExtension = actual_file_path.split('.').pop().toLowerCase();
       const method = fileExtension === 'pdf' ? 
         'ordercapture_ocr.api.get_ocr_details' : 
-        'ordercapture_ocr.api.extract_excel_data';
-
-
+        'ordercapture_ocr.api.extract_purchase_order_data';
     
       frappe.call({
         method: method,
         args: {
           file_path: actual_file_path
         },
-        // callback: (r) => {
-        //   d.$wrapper.css('filter', '');
-        //   $('.ocr-loader').remove();
-        //   console.log(r.message)
-        // },
         callback: (r) => {
+          console.log(r)
           // Remove blur and loader
           d.$wrapper.css('filter', '');
           $('.ocr-loader').remove();
-          if (r.message) {
-            // console.log(r.message)
+          if (r.message && r.message.orderDetails) {
             // Create items if they don't exist
             const createItemPromises = r.message.orderDetails.map(item => {
               return new Promise((resolve) => {
@@ -466,8 +468,8 @@ ordercapture_ocr.process_dialog = {
                         args: {
                           doc: {
                             doctype: 'Item',
-                            item_code: item.itemCode,
-                            item_name: item.itemName,
+                            item_code: String(item.itemCode),
+                            item_name: String(item.itemName),
                             item_group: 'Products', // Set default item group
                             is_stock_item: 1,
                             stock_uom: 'Nos' // Set default UOM
@@ -503,7 +505,7 @@ ordercapture_ocr.process_dialog = {
             d.$wrapper.css('filter', '');
             $('.ocr-loader').remove();
             frappe.show_alert({
-              message: 'No data processed found',
+              message: 'Invalid data format recieved, cannot be processed',
               title: 'Error',
               indicator: 'red'
             });
@@ -521,6 +523,8 @@ ordercapture_ocr.process_dialog = {
           });
         }
       });
+
+
     };
     
     // View File
@@ -529,6 +533,7 @@ ordercapture_ocr.process_dialog = {
       const actual_file_path = file_path_display.split(': ')[1];
       window.open(`${actual_file_path}`, '_blank');
     };
+
 
     // Save Changes
     d.events.save_changes = function() {
@@ -552,10 +557,13 @@ ordercapture_ocr.process_dialog = {
           itemCode: item.itemCode,
           itemName: item.itemName,
           qty: item.qty,
-          rate: item.landing_rate,
+          rate: item.rate,
+          landing_rate: item.landing_rate,
           gst: item.gst,
+          plRate: item.plRate,
           totalAmount: item.totalAmount
         })),
+        orderNumber: d.get_value('po_number'),
         totals: {
           totalItemQty: d.get_value('total_item_qty'),
           itemGrandTotal: d.get_value('item_grand_total')
@@ -572,7 +580,8 @@ ordercapture_ocr.process_dialog = {
         },
         callback: (r) => {
           setTableFromProcessedJson(d, r.message.processed_json)
-      
+          
+          d.$wrapper.find('.post-sales-order-btn').prop('disabled', false);
           frappe.show_alert({
             message: 'Changes saved successfully',
             indicator: 'green'
@@ -583,6 +592,7 @@ ordercapture_ocr.process_dialog = {
 
     const setTableFromProcessedJson = (d, processed_json) => {
       const processed_data = JSON.parse(processed_json);
+      // console.log(processed_data)
 
       d.fields_dict.items.df.data = [];
       d.fields_dict.items.grid.data = [];
@@ -591,24 +601,49 @@ ordercapture_ocr.process_dialog = {
       if(processed_data.orderDetails.length > 0){
         d.$wrapper.find('.post-sales-order-btn').show();
         d.$wrapper.find('.save-changes-btn').show();
+        d.$wrapper.find('.fetch_price_list_rate').show();
       }else{
         d.$wrapper.find('.post-sales-order-btn').hide();
         d.$wrapper.find('.save-changes-btn').hide();
+        d.$wrapper.find('.fetch_price_list_rate').hide();
       }
 
       d.fields_dict.items.grid.refresh();
+     
       // Add rows from processed_json
       processed_data.orderDetails.forEach(item => {
         let row = d.fields_dict.items.df.data;
         d.fields_dict.items.grid.add_new_row();
+        const currentIndex = d.fields_dict.items.df.data.length - 1;
         row = d.fields_dict.items.df.data[d.fields_dict.items.df.data.length - 1];
         Object.assign(row, item);
+
+        // // Add rate comparison and highlighting
+        if(row.rate !== parseInt(row.plRate)) {
+          d.fields_dict.items.grid.grid_rows[currentIndex].row.addClass('highlight-red');
+        }
       });
 
       // Refresh grid and set totals
       d.fields_dict.items.grid.refresh();
+      // Set initial data and bind change handler
+      initial_table_data = JSON.stringify(d.fields_dict.items.grid.data);
+
+      d.fields_dict.items.grid.wrapper.off('change').on('change', () => {
+        let current_table_data = JSON.stringify(d.fields_dict.items.grid.data);
+
+        if (current_table_data !== initial_table_data) {
+          d.$wrapper.find('.post-sales-order-btn').prop('disabled', true);
+          d.$wrapper.find('.save-changes-btn').show();
+        } else {
+          d.$wrapper.find('.post-sales-order-btn').prop('disabled', false);
+        }
+      });
+      d.set_value('po_number',  processed_data.orderNumber);
+
       d.set_value('total_item_qty', processed_data.totals.totalItemQty);
       d.set_value('item_grand_total', processed_data.totals.itemGrandTotal);
+      
 
       // Calculate total net amount (sum of rates without taxes)
       const total_net_amount = processed_data.orderDetails.reduce((sum, item) => {
@@ -631,6 +666,8 @@ ordercapture_ocr.process_dialog = {
 
     d.events.post_sales_order = function() {
       const items_data = d.fields_dict.items.grid.data;
+      const po_number = d.get_value('po_number');
+
       if (items_data.length === 0) {
         frappe.show_alert({
           message: 'Please add items to Post sales order.',
@@ -639,69 +676,83 @@ ordercapture_ocr.process_dialog = {
         });
         return;
       }
-      const sales_order_values = {
-        Customer: {
-          customer: d.get_value('customer'),
-          customerName: d.get_value('customer_name'),
-          customerAddressLink: d.get_value('customer_address_link'),
-          customerAddress: d.get_value('customer_address')
-        },
-        orderDetails: items_data.map(item => ({
-          itemCode: item.itemCode,
-          itemName: item.itemName,
-          qty: item.qty,
-          rate: item.rate,
-          gst: item.gst,
-          totalAmount: item.totalAmount
-        })),
-        totals: {
-          totalItemQty: d.get_value('total_item_qty'),
-          itemGrandTotal: d.get_value('item_grand_total')
+       // Check for existing SO with same PO number
+      frappe.db.get_list('Sales Order', {
+        filters: {
+          po_no: po_number,
+          docstatus: ['!=', 2]  // Not cancelled
         }
-      };
-      frappe.call({
-        method: 'ordercapture_ocr.ordercapture_ocr.sales_order_api.create_sales_order',
-        args: {
-          response: sales_order_values
-        },
-        callback: (r) => {
-          const sales_order_name = r.message;
+      }).then(existing_orders => {
+        if (existing_orders.length > 0) {
+          frappe.msgprint(__('Sales Order already exists with PO Number: {0}', [po_number]));
+          return;
+        }
 
-            // Update OCR Document Processor
-          frappe.call({
-            method: 'frappe.client.set_value',
-            args: {
-              doctype: 'OCR Document Processor',
-              name: d.get_value('current_id'),
-              fieldname: {
-                'status': 'Completed',
-                'sales_order': sales_order_name
+        const sales_order_values = {
+          Customer: {
+            customer: d.get_value('customer'),
+            customerName: d.get_value('customer_name'),
+            customerAddressLink: d.get_value('customer_address_link'),
+            customerAddress: d.get_value('customer_address'),
+            poNumber: po_number
+          },
+          orderDetails: items_data.map(item => ({
+            itemCode: item.itemCode,
+            itemName: item.itemName,
+            qty: item.qty,
+            rate: item.rate,
+            gst: item.gst,
+            totalAmount: item.totalAmount
+          })),
+          totals: {
+            totalItemQty: d.get_value('total_item_qty'),
+            itemGrandTotal: d.get_value('item_grand_total')
+          }
+        };
+        frappe.call({
+          method: 'ordercapture_ocr.ordercapture_ocr.sales_order_api.create_sales_order',
+          args: {
+            response: sales_order_values
+          },
+          callback: (r) => {
+            const sales_order_name = r.message;
+  
+              // Update OCR Document Processor
+            frappe.call({
+              method: 'frappe.client.set_value',
+              args: {
+                doctype: 'OCR Document Processor',
+                name: d.get_value('current_id'),
+                fieldname: {
+                  'status': 'Completed',
+                  'sales_order': sales_order_name
+                }
+              },
+              callback: () => {
+                // Refresh the current document
+                loadDocument(d.get_value('current_id'));
+  
+                // Background refresh
+                refreshPageInBackground();
+  
+                d.set_value('sales_order_ref', sales_order_name);
+                d.set_df_property('sales_order_ref', 'hidden', 0)
+  
+                frappe.show_alert({
+                  message: 'Sales Order created and OCR Document updated',
+                  indicator: 'green'
+                });
+                d.set_df_property('post_sales_order', {
+                  read_only: true,
+                  hidden: true
+                });
+                d.$wrapper.find('.post-sales-order-btn').hide();
               }
-            },
-            callback: () => {
-              // Refresh the current document
-              loadDocument(d.get_value('current_id'));
-
-              // Background refresh
-              refreshPageInBackground();
-
-              d.set_value('sales_order_ref', sales_order_name);
-              d.set_df_property('sales_order_ref', 'hidden', 0)
-
-              frappe.show_alert({
-                message: 'Sales Order created and OCR Document updated',
-                indicator: 'green'
-              });
-              d.set_df_property('post_sales_order', {
-                read_only: true,
-                hidden: true
-              });
-              d.$wrapper.find('.post-sales-order-btn').hide();
-              // frappe.set_route('Form', 'Sales Order', sales_order_name);
-            }
-          });
-        }
-      });
+            });
+          }
+        });
+      })
+     
     };
 
     d.events.fetch_price_list_rate = function() {
@@ -725,10 +776,10 @@ ordercapture_ocr.process_dialog = {
         },
         callback: (r) => {
           if(r.message) {
-            console.log(r.message);
+            // console.log(r.message);
             const price_list = r.message.selling_price_list || 'Standard Selling';
-            const price_list_currency = r.message.price_list_currency || 'INR';
-            console.log('Price List: ' + price_list);
+            const price_list_currency = r.message.price_list_rate || "INR";
+            
             // Step 2: Get price list rates for all items
             items.forEach((item, idx) => {
               frappe.call({
@@ -740,13 +791,14 @@ ordercapture_ocr.process_dialog = {
                     customer: customer,
                     company: frappe.defaults.get_default('company'),
                     doctype: 'Sales Order',
-                    currency: price_list_currency,
                     price_list_currency: price_list_currency,
-                    plc_conversion_rate: 1
+                    conversion_rate: 1,
+                    currency: price_list_currency,
+                    // plc_conversion_rate: 1
                   }
                 },
                 callback: (result) => {
-                  console.log(result);
+                  // console.log(result);
                   if(result.message) {
                     // Update rate with price list rate
                     // item.rate = result.message.price_list_rate;
@@ -756,9 +808,12 @@ ordercapture_ocr.process_dialog = {
                     // item.totalAmount = item.rate * item.qty;
                     
                     // Highlight if rates are different from landing rate
-                    if(item.rate !== item.plRate) {
+                    if(item.rate !== item.plRate ) {
                       d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
-                    } 
+                    }else{
+                      d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-white');
+
+                    }
                     
                     d.fields_dict.items.grid.refresh();
                   }
@@ -774,6 +829,9 @@ ordercapture_ocr.process_dialog = {
     frappe.dom.set_style(`
       .highlight-red {
         background-color: #ffe6e6 !important;
+      }
+        .highlight-white {
+        background-color: #fff !important;
       }
     `);
 
