@@ -444,9 +444,7 @@ ordercapture_ocr.process_dialog = {
       const fileExtension = actual_file_path.split('.').pop().toLowerCase();
       const method = fileExtension === 'pdf' ? 
         'ordercapture_ocr.api.get_ocr_details' : 
-        'ordercapture_ocr.api.extract_excel_data';
-
-
+        'ordercapture_ocr.api.extract_purchase_order_data';
     
       frappe.call({
         method: method,
@@ -454,10 +452,11 @@ ordercapture_ocr.process_dialog = {
           file_path: actual_file_path
         },
         callback: (r) => {
+          console.log(r)
           // Remove blur and loader
           d.$wrapper.css('filter', '');
           $('.ocr-loader').remove();
-          if (r.message && r.message.orderDetails && Array.isArray(r.message.orderDetails)) {
+          if (r.message && r.message.orderDetails) {
             // Create items if they don't exist
             const createItemPromises = r.message.orderDetails.map(item => {
               return new Promise((resolve) => {
@@ -469,8 +468,8 @@ ordercapture_ocr.process_dialog = {
                         args: {
                           doc: {
                             doctype: 'Item',
-                            item_code: item.itemCode,
-                            item_name: item.itemName,
+                            item_code: String(item.itemCode),
+                            item_name: String(item.itemName),
                             item_group: 'Products', // Set default item group
                             is_stock_item: 1,
                             stock_uom: 'Nos' // Set default UOM
@@ -524,6 +523,8 @@ ordercapture_ocr.process_dialog = {
           });
         }
       });
+
+
     };
     
     // View File
@@ -638,10 +639,11 @@ ordercapture_ocr.process_dialog = {
           d.$wrapper.find('.post-sales-order-btn').prop('disabled', false);
         }
       });
+      d.set_value('po_number',  processed_data.orderNumber);
 
       d.set_value('total_item_qty', processed_data.totals.totalItemQty);
       d.set_value('item_grand_total', processed_data.totals.itemGrandTotal);
-      d.set_value('po_number',  processed_data.orderNumber);
+      
 
       // Calculate total net amount (sum of rates without taxes)
       const total_net_amount = processed_data.orderDetails.reduce((sum, item) => {
