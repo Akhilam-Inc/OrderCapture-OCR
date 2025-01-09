@@ -59,14 +59,19 @@ ordercapture_ocr.process_dialog = {
         {
             fieldtype: 'Column Break',
             fieldname: 'col_3'
-          },
-        
-        
+        },
         {
           fieldtype: 'Small Text',
           fieldname: 'customer_address',
           label: 'Customer Address',
           read_only: 1
+        },
+        {
+          fieldtype: 'Select',
+          fieldname: 'vendor_type',
+          label: 'Vendor Type',
+          options: "FlipKart \n BB",
+          hidden: 1
         },
         {
           fieldtype: 'Data',
@@ -296,7 +301,6 @@ ordercapture_ocr.process_dialog = {
     });
 
     const loadDocument = (docId) => {
-      // frappe.views.OCRDashboard.fetchRecentOrders()
       frappe.db.get_doc('OCR Document Processor', docId)
         .then(doc => {        
           d.set_value('customer', doc.customer); 
@@ -312,17 +316,13 @@ ordercapture_ocr.process_dialog = {
             d.$wrapper.find('.post-sales-order-btn').hide();
             refreshPageInBackground();
           }
+          const fileExtension = doc.file_path.split('.').pop().toLowerCase();
+          if (fileExtension !== 'pdf') {
+            d.set_df_property('vendor_type', 'hidden', 0);
+          } else {
+            d.set_df_property('vendor_type', 'hidden', 1); 
+          }
 
-          // Hide Post Sales Order button if sales_order exists
-          // if (doc.sales_order) {
-          //   refreshPageInBackground();
-          //   d.set_df_property('post_sales_order', {
-          //     read_only: true,
-          //     hidden: true
-          //   });
-          //   d.$wrapper.find('.post-sales-order-btn').hide();
-          // }
-          
           // Update process file button text
           const processBtn = d.$wrapper.find('.process-file-btn');
           if (doc.status === 'Failed') {
@@ -445,14 +445,20 @@ ordercapture_ocr.process_dialog = {
       const method = fileExtension === 'pdf' ? 
         'ordercapture_ocr.api.get_ocr_details' : 
         'ordercapture_ocr.api.extract_purchase_order_data';
+
+      let args = {
+        file_path: actual_file_path
+      };
+    
+      // Add vendor_type for non-PDF files
+      if (fileExtension !== 'pdf') {
+        args.vendor_type = d.get_value('vendor_type');
+      }
     
       frappe.call({
         method: method,
-        args: {
-          file_path: actual_file_path
-        },
+        args: args,
         callback: (r) => {
-          console.log(r)
           // Remove blur and loader
           d.$wrapper.css('filter', '');
           $('.ocr-loader').remove();
@@ -534,7 +540,6 @@ ordercapture_ocr.process_dialog = {
       window.open(`${actual_file_path}`, '_blank');
     };
 
-
     // Save Changes
     d.events.save_changes = function() {
       const items = d.fields_dict.items.grid.data;
@@ -592,7 +597,6 @@ ordercapture_ocr.process_dialog = {
 
     const setTableFromProcessedJson = (d, processed_json) => {
       const processed_data = JSON.parse(processed_json);
-      // console.log(processed_data)
 
       d.fields_dict.items.df.data = [];
       d.fields_dict.items.grid.data = [];
@@ -609,8 +613,6 @@ ordercapture_ocr.process_dialog = {
       }
 
       d.fields_dict.items.grid.refresh();
-
-      console.log(processed_data)
      
       // Add rows from processed_json
       processed_data.orderDetails.forEach(item => {
@@ -644,11 +646,15 @@ ordercapture_ocr.process_dialog = {
         }
       });
       d.set_value('po_number',  processed_data.orderNumber);
+      // Calculate totals from table data
+      const items = d.fields_dict.items.grid.data;
+      const total_item_qty = items.reduce((sum, item) => sum + (item.qty || 0), 0);
+      const item_grand_total = items.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
 
-      d.set_value('total_item_qty', processed_data.totals.totalItemQty);
-      d.set_value('item_grand_total', processed_data.totals.itemGrandTotal);
+      // Set the calculated values
+      d.set_value('total_item_qty', total_item_qty);
+      d.set_value('item_grand_total', item_grand_total);
       
-
       // Calculate total net amount (sum of rates without taxes)
       const total_net_amount = processed_data.orderDetails.reduce((sum, item) => {
         return sum + (item.rate * item.qty);
@@ -780,7 +786,6 @@ ordercapture_ocr.process_dialog = {
         },
         callback: (r) => {
           if(r.message) {
-            // console.log(r.message);
             const price_list = r.message.selling_price_list || 'Standard Selling';
             const price_list_currency = r.message.price_list_rate || "INR";
             
@@ -802,14 +807,9 @@ ordercapture_ocr.process_dialog = {
                   }
                 },
                 callback: (result) => {
-                  // console.log(result);
                   if(result.message) {
                     // Update rate with price list rate
-                    // item.rate = result.message.price_list_rate;
                     item.plRate = result.message.price_list_rate;
-                    
-                    // Recalculate total amount
-                    // item.totalAmount = item.rate * item.qty;
                     
                     // Highlight if rates are different from landing rate
                     if(item.rate !== item.plRate ) {
