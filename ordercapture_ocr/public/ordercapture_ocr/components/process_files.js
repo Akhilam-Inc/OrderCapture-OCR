@@ -609,6 +609,8 @@ ordercapture_ocr.process_dialog = {
       }
 
       d.fields_dict.items.grid.refresh();
+
+      console.log(processed_data)
      
       // Add rows from processed_json
       processed_data.orderDetails.forEach(item => {
@@ -619,8 +621,10 @@ ordercapture_ocr.process_dialog = {
         Object.assign(row, item);
 
         // // Add rate comparison and highlighting
-        if(row.rate !== parseInt(row.plRate)) {
+        if(row.rate !== row.plRate) {
           d.fields_dict.items.grid.grid_rows[currentIndex].row.addClass('highlight-red');
+        }else{
+          d.fields_dict.items.grid.grid_rows[currentIndex].row.addClass('highlight-white');
         }
       });
 

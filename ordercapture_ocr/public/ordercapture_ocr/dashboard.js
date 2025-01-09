@@ -167,6 +167,11 @@ ordercapture_ocr.components.Dashboard = {
             methods: {
 				onFileChange(e) {
                     const files = e.target.files;
+					if (!this.$parent.selectedCustomer) {
+						frappe.msgprint('Please select a customer');
+						e.target.value = ''; // Clear the file input
+						return;
+					}
                     if (files && files.length) {
                         const validTypes = [
                             'application/pdf',
