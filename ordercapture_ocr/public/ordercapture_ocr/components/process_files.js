@@ -270,7 +270,9 @@ ordercapture_ocr.process_dialog = {
 
     // Add navigation events
     d.events = {
+      
       next: function() {
+        
         if (currentIndex < documents.length - 1) {
           currentIndex++;
          // Clear table first
@@ -386,6 +388,24 @@ ordercapture_ocr.process_dialog = {
     
     if (typeof(docId) == 'string') {
       loadDocument(docId);
+
+      // Then fetch all documents for navigation
+      frappe.call({
+        method: 'frappe.client.get_list',
+        args: {
+          doctype: 'OCR Document Processor',
+          filters: { date: new Date().toISOString().split('T')[0] },
+          fields: ['name'],
+          order_by: 'creation desc'
+        },
+        callback: (r) => {
+          if (r.message && r.message.length) {
+            documents = r.message;
+            // Set currentIndex to the position of current docId
+            currentIndex = documents.findIndex(doc => doc.name === docId);
+          }
+        }
+      });
     
     }else{
       // Initial fetch of documents
