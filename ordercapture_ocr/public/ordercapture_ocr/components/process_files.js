@@ -479,6 +479,7 @@ ordercapture_ocr.process_dialog = {
         method: method,
         args: args,
         callback: (r) => {
+          // console.log(r.message)
           // Remove blur and loader
           d.$wrapper.css('filter', '');
           $('.ocr-loader').remove();

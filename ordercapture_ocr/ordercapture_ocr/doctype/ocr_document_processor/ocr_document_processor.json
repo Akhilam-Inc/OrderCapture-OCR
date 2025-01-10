@@ -15,6 +15,7 @@
   "sales_order",
   "status",
   "date",
+  "vendor_type",
   "section_break_dsiz",
   "processed_json"
  ],
@@ -62,6 +63,7 @@
    "options": "Customer"
   },
   {
+   "default": "Today",
    "fieldname": "date",
    "fieldtype": "Date",
    "label": "Date"
@@ -75,11 +77,17 @@
    "fieldname": "customer_address_display",
    "fieldtype": "Small Text",
    "label": "Customer Address Display"
+  },
+  {
+   "fieldname": "vendor_type",
+   "fieldtype": "Select",
+   "label": "Vendor Type",
+   "options": "FlipKart\nBB"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-01-07 01:50:18.559587",
+ "modified": "2025-01-10 10:20:40.106784",
  "modified_by": "Administrator",
  "module": "OrderCapture OCR",
  "name": "OCR Document Processor",
