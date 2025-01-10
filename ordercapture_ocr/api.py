@@ -6,6 +6,7 @@ from frappe import _
 import io
 import pandas as pd
 from frappe.utils import cstr
+from re import sub
 
 @frappe.whitelist()
 def extract_purchase_order_data(file_path: str, vendor_type: str) -> dict:
@@ -123,18 +124,20 @@ def extract_purchase_order_data(file_path: str, vendor_type: str) -> dict:
                 itemCode = row['FSN/ISBN13']
                 itemName = row['Title']
                 qty = row['Quantity']
-                rate = row['Supplier Price']
-                # gst = row['GST Amount']/row['Quantity']
-                # landing_rate = row['Landing Cost']
+                rate = convert_string_with_inr(row['Tax Amount']) - convert_string_with_inr(row['Supplier Price'])
+                gst = convert_string_with_inr(row['Tax Amount'])/row['Quantity']
+                landing_rate = convert_string_with_inr(row['Supplier Price'])
                 totalAmount = row['Total Amount']
+
+                print(f"Item Code: {itemCode}, Item Name: {itemName}, Qty: {qty}, Rate: {rate}, GST: {gst}, Landing Rate: {landing_rate}, Total Amount: {totalAmount}")
 
                 order_details.append({
                     "itemCode": itemCode,
                     "itemName": itemName,
                     "qty": qty,
                     "rate": rate,
-                    # "gst": gst,
-                    # "landing_rate": landing_rate,
+                    "gst": gst,
+                    "landing_rate": landing_rate,
                     "totalAmount": totalAmount
                 })
 
@@ -148,6 +151,8 @@ def extract_purchase_order_data(file_path: str, vendor_type: str) -> dict:
         frappe.throw(f"Error extracting data: {e}")
         return {}
 
+def convert_string_with_inr(value):
+    return float(sub(r'[^0-9.]', '', value))
 
 @frappe.whitelist()
 def process_file():
