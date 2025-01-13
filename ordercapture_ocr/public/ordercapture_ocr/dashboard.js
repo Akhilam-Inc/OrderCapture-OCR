@@ -417,6 +417,12 @@ ordercapture_ocr.components.Dashboard = {
 						indicator: 'green'
 					});
 					this.fetchRecentOrders();
+					// Reset the file input
+					const fileInput = this.$el.querySelector('input[type="file"]');
+					if (fileInput) {
+						console.log(fileInput)
+						fileInput.value = '';
+					}
 				});
 			});
 		},
