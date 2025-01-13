@@ -508,19 +508,49 @@ ordercapture_ocr.process_dialog = {
                 frappe.db.exists('Item', item.itemCode)
                   .then(exists => {
                     if (!exists) {
+                      // frappe.call({
+                      //   method: 'frappe.client.insert',
+                      //   args: {
+                      //     doc: {
+                      //       doctype: 'Item',
+                      //       item_code: String(item.itemCode),
+                      //       item_name: String(item.itemName),
+                      //       item_group: 'Products', // Set default item group
+                      //       is_stock_item: 1,
+                      //       stock_uom: 'Nos', // Set default UOM
+
+                      //     }
+                      //   },
+                      //   callback: () => resolve()
+                      // });
+
+                      let item_doc = {
+                        doctype: 'Item',
+                        item_code: String(item.itemCode),
+                        item_name: String(item.itemName),
+                        item_group: 'Products',
+                        is_stock_item: 1,
+                        stock_uom: 'Nos'
+                      };
+            
+                      // Check if India Compliance app exists
                       frappe.call({
-                        method: 'frappe.client.insert',
+                        method: 'frappe.db.exists',
                         args: {
-                          doc: {
-                            doctype: 'Item',
-                            item_code: String(item.itemCode),
-                            item_name: String(item.itemName),
-                            item_group: 'Products', // Set default item group
-                            is_stock_item: 1,
-                            stock_uom: 'Nos', // Set default UOM
-                          }
+                          doctype: 'Module Def',
+                          name: 'India Compliance'
                         },
-                        callback: () => resolve()
+                        callback: (r) => {
+                          if (r.message && item.itemCode) {
+                            item_doc.gst_hsn_code = item.itemCode;
+                          }
+                          
+                          frappe.call({
+                            method: 'frappe.client.insert',
+                            args: { doc: item_doc },
+                            callback: () => resolve()
+                          });
+                        }
                       });
                     } else {
                       resolve();
