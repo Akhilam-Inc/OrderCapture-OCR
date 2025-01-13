@@ -279,7 +279,8 @@ ordercapture_ocr.process_dialog = {
           d.fields_dict.items.df.data = [];
           d.fields_dict.items.grid.data = [];
           d.fields_dict.items.grid.refresh();
-
+          d.set_value('po_number', '');
+          refreshTotalFields(d)
           loadDocument(documents[currentIndex].name);
 
         }
@@ -291,7 +292,8 @@ ordercapture_ocr.process_dialog = {
           d.fields_dict.items.df.data = [];
           d.fields_dict.items.grid.data = [];
           d.fields_dict.items.grid.refresh();
-
+          d.set_value('po_number', '');
+          refreshTotalFields(d)
           loadDocument(documents[currentIndex].name);
 
         }
@@ -686,7 +688,14 @@ ordercapture_ocr.process_dialog = {
       // Calculate totals from table data
       const items = d.fields_dict.items.grid.data;
       const total_item_qty = items.reduce((sum, item) => sum + (item.qty || 0), 0);
-      const item_grand_total = items.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
+      
+      // const item_grand_total = items.reduce((sum, item) => {
+      //   const amount = parseFloat(item.totalAmount) || 0;
+      //   return sum + amount;
+      // }, 0);
+      const item_grand_total = Number(items.reduce((sum, item) => sum + (Number(item.totalAmount) || 0), 0).toFixed(2));
+
+      // const item_grand_total = items.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
 
       // Set the calculated values
       d.set_value('total_item_qty', total_item_qty);
@@ -694,7 +703,7 @@ ordercapture_ocr.process_dialog = {
       
       // Calculate total net amount (sum of rates without taxes)
       const total_net_amount = processed_data.orderDetails.reduce((sum, item) => {
-        return sum + (item.rate * item.qty);
+        return Number((sum + (item.rate * item.qty)).toFixed(2));
       }, 0);
 
       // Set the total net amount field
@@ -703,7 +712,7 @@ ordercapture_ocr.process_dialog = {
       // Calculate total taxes
       const total_taxes = processed_data.orderDetails.reduce((sum, item) => {
         const gst_value = parseFloat(item.gst) || 0;
-        return sum + ((item.rate * item.qty * gst_value) / 100);
+        return Number((sum + ((item.rate * item.qty * gst_value) / 100)).toFixed(2));
       }, 0);
 
       // Set the total taxes field
@@ -886,6 +895,40 @@ ordercapture_ocr.process_dialog = {
   }
 };
 
+// Create a function to refresh all totals
+const refreshTotalFields = (d) => {
+  const items = d.fields_dict.items.grid.data;
+  
+  // Calculate total item quantity
+  const total_item_qty = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+  
+  // Calculate total net amount (sum of rates without taxes)
+  const total_net_amount = items.reduce((sum, item) => {
+    return sum + ((Number(item.rate) || 0) * (Number(item.qty) || 0));
+  }, 0).toFixed(2);
+  
+  // Calculate total taxes
+  const total_taxes = items.reduce((sum, item) => {
+    const gst_value = parseFloat(item.gst) || 0;
+    const amount = ((Number(item.rate) || 0) * (Number(item.qty) || 0) * gst_value) / 100;
+    return sum + amount;
+  }, 0).toFixed(2);
+  
+  // Calculate grand total
+  const item_grand_total = items.reduce((sum, item) => {
+    const qty = Number(item.qty) || 0;
+    const rate = Number(item.rate) || 0;
+    const gst = Number(item.gst) || 0;
+    const amount = (qty * rate) + ((qty * rate * gst) / 100);
+    return sum + amount;
+  }, 0).toFixed(2);
+
+  // Set all values
+  d.set_value('total_item_qty', total_item_qty);
+  d.set_value('total_net_amount', total_net_amount);
+  d.set_value('total_taxes', total_taxes);
+  d.set_value('item_grand_total', item_grand_total);
+};
 
 function refreshPageInBackground() {
   // Create a hidden iframe
