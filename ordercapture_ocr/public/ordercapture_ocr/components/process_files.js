@@ -516,7 +516,6 @@ ordercapture_ocr.process_dialog = {
                             item_group: 'Products', // Set default item group
                             is_stock_item: 1,
                             stock_uom: 'Nos', // Set default UOM
-                            gst_hsn_code: item.gst
                           }
                         },
                         callback: () => resolve()
