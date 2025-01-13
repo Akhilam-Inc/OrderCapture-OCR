@@ -763,39 +763,41 @@ ordercapture_ocr.process_dialog = {
           },
           callback: (r) => {
             const sales_order_name = r.message;
-  
-              // Update OCR Document Processor
-            frappe.call({
-              method: 'frappe.client.set_value',
-              args: {
-                doctype: 'OCR Document Processor',
-                name: d.get_value('current_id'),
-                fieldname: {
-                  'status': 'Completed',
-                  'sales_order': sales_order_name
+
+            if (sales_order_name) {
+                // Update OCR Document Processor
+              frappe.call({
+                method: 'frappe.client.set_value',
+                args: {
+                  doctype: 'OCR Document Processor',
+                  name: d.get_value('current_id'),
+                  fieldname: {
+                    'status': 'Completed',
+                    'sales_order': sales_order_name
+                  }
+                },
+                callback: () => {
+                  // Refresh the current document
+                  loadDocument(d.get_value('current_id'));
+    
+                  // Background refresh
+                  refreshPageInBackground();
+    
+                  d.set_value('sales_order_ref', sales_order_name);
+                  d.set_df_property('sales_order_ref', 'hidden', 0)
+    
+                  frappe.show_alert({
+                    message: 'Sales Order created and OCR Document updated',
+                    indicator: 'green'
+                  });
+                  d.set_df_property('post_sales_order', {
+                    read_only: true,
+                    hidden: true
+                  });
+                  d.$wrapper.find('.post-sales-order-btn').hide();
                 }
-              },
-              callback: () => {
-                // Refresh the current document
-                loadDocument(d.get_value('current_id'));
-  
-                // Background refresh
-                refreshPageInBackground();
-  
-                d.set_value('sales_order_ref', sales_order_name);
-                d.set_df_property('sales_order_ref', 'hidden', 0)
-  
-                frappe.show_alert({
-                  message: 'Sales Order created and OCR Document updated',
-                  indicator: 'green'
-                });
-                d.set_df_property('post_sales_order', {
-                  read_only: true,
-                  hidden: true
-                });
-                d.$wrapper.find('.post-sales-order-btn').hide();
-              }
-            });
+              });
+            }
           }
         });
       })
