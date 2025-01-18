@@ -446,7 +446,7 @@ ordercapture_ocr.process_dialog = {
     d.$wrapper.find('.modal-header').append(navigationHtml);
 
     // Prcess File
-    d.events.process_file = function() {
+    d.events.process_file = async function() {
       const file_path_display = d.get_value('file_path');
       const actual_file_path = file_path_display.split(': ')[1];
       
@@ -497,7 +497,46 @@ ordercapture_ocr.process_dialog = {
       frappe.call({
         method: method,
         args: args,
-        callback: (r) => {
+        callback: async (r) => {
+          // After receiving r.message in process_file callback
+          if (r.message.Customer.customerAddressLink) {
+            if(d.get_value('customer') !== r.message.Customer.customerName){
+              frappe.show_alert({
+                message: __('Customer name does not match with the uploaded file. Please check and try again.'),
+                indicator: 'red'
+              }, 5);
+            }
+            frappe.call({
+              method: 'ordercapture_ocr.api.get_customer_addresses',
+              args: {
+                customer_name: d.get_value('customer'),
+              },
+              callback: async (response) => {
+                const customerAddressLink = r.message.Customer.customerAddressLink;
+                const addresses = response.message;
+                if(addresses.length > 0){
+                  // const exactMatch = addresses.find(addr => addr.name === customerAddressLink);
+        
+                  // Check similar matches
+                  const similarMatch = addresses.find(addr => 
+                    customerAddressLink.includes(addr.name) || addr.name.includes(customerAddressLink)
+                  );
+      
+                  if (similarMatch) {
+                    // Address found in the list
+                    d.set_value('customer_address_link', similarMatch.name);
+                  }else{
+                    frappe.show_alert({
+                      message: __('Customer address not found. Create new address.'),
+                      indicator: 'red'
+                    }, 10);
+                  }
+                }
+      
+              }
+            });
+          }
+
           // Remove blur and loader
           d.$wrapper.css('filter', '');
           $('.ocr-loader').remove();

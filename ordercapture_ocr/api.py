@@ -40,6 +40,10 @@ def extract_purchase_order_data(file_path: str, vendor_type: str) -> dict:
         
         return {
             'orderNumber': order_details.get('po_number', ''),
+            'Customer':{
+                'customerAddressLink': order_details.get('customer', {}).get('customer_address', ''),
+                'customerName': order_details.get('customer', {}).get('customer_name', ''),
+            },
             # 'orderDate': order_details.get('po_date', ''),
             'orderDetails': order_details.get('items', [])
         }
@@ -52,7 +56,10 @@ def _process_bb_order(df: pd.DataFrame) -> dict:
     """Process BB vendor purchase order"""
     po_number = df.iloc[10, 0].split(":")[1].strip() if "PO Number" in str(df.iloc[10, 0]) else ""
     po_date = df.iloc[10, 3].split(":")[1].strip() if "PO date" in str(df.iloc[10, 3]) else ""
-    
+
+    customer_address = df.iloc[5, 7]
+    customer_name = df.iloc[8, 7]
+
     start_row = df[df.iloc[:, 0].str.contains("SLNO", na=False)].index[0]
     end_row = df[df.iloc[:, 3].str.contains("Total", na=False)].index[0]
     
@@ -62,6 +69,10 @@ def _process_bb_order(df: pd.DataFrame) -> dict:
     return {
         'po_number': po_number,
         'po_date': po_date,
+        'customer': {
+            "customer_address": customer_address,
+            "customer_name": customer_name,
+        },
         'items': items
     }
 
@@ -69,6 +80,10 @@ def _process_flipkart_order(df: pd.DataFrame) -> dict:
     """Process FlipKart vendor purchase order"""
     po_number = df.iloc[0, 1]
     po_date = df.iloc[0, 11]
+
+    customer_address = df.iloc[2, 2]
+    customer_name = df.iloc[2, 1]
+
     
     start_row = df[df.iloc[:, 0].str.contains("S. no", na=False)].index[0]
     end_row = df[df.iloc[:, 3].str.contains("Total", na=False)].index[0]
@@ -79,6 +94,10 @@ def _process_flipkart_order(df: pd.DataFrame) -> dict:
     return {
         'po_number': po_number,
         'po_date': po_date,
+        'customer': {
+            "customer_address": customer_address,
+            "customer_name": customer_name,
+        },
         'items': items
     }
 
@@ -340,6 +359,41 @@ def store_processed_data(processed_data, filename):
     doc.processed_data = frappe.as_json(processed_data)
     doc.processing_date = frappe.utils.now()
     doc.insert()
+
+@frappe.whitelist()
+def get_customer_addresses(customer_name):
+    """Get all addresses for a specific customer
+    
+    Args:
+        customer_name (str): Name of the customer
+        
+    Returns:
+        list: List of address documents with key details
+    """
+    addresses = frappe.get_all(
+        "Address",
+        filters={
+            "link_doctype": "Customer",
+            "link_name": customer_name
+        },
+        fields=[
+            "name",
+            "address_title",
+            "address_line1", 
+            "address_line2",
+            "city",
+            "state",
+            "country",
+            "pincode",
+            "phone",
+            "email_id",
+            "is_primary_address",
+            "is_shipping_address"
+        ]
+    )
+    
+    return addresses
+
 
         
 @frappe.whitelist()
