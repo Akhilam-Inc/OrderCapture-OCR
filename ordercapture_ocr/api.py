@@ -70,8 +70,8 @@ def _process_bb_order(df: pd.DataFrame) -> dict:
         'po_number': po_number,
         'po_date': po_date,
         'customer': {
-            "customer_address": customer_address,
-            "customer_name": customer_name,
+            "customer_address": str(ustomer_address) or "",
+            "customer_name": str(customer_name) or "",
         },
         'items': items
     }
@@ -95,8 +95,8 @@ def _process_flipkart_order(df: pd.DataFrame) -> dict:
         'po_number': po_number,
         'po_date': po_date,
         'customer': {
-            "customer_address": customer_address,
-            "customer_name": customer_name,
+            "customer_address": str(customer_address) or "",
+            "customer_name": str(customer_name) or "",
         },
         'items': items
     }

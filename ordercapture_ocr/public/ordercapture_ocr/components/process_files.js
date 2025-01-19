@@ -954,6 +954,9 @@ ordercapture_ocr.process_dialog = {
         .highlight-white {
         background-color: #fff !important;
       }
+      .desk-alert {
+        z-index: 10000;
+      }
     `);
 
     
