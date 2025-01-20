@@ -516,7 +516,7 @@ ordercapture_ocr.process_dialog = {
         callback: async (r) => {
           // After receiving r.message in process_file callback
           if (r.message.Customer.customerAddress) {
-            if(d.get_value('customer') !== r.message.Customer.customerName){
+            if(d.get_value('customer').toLowerCase() !== r.message.Customer.customerName.toLowerCase()){
               frappe.show_alert({
                 message: __(`Customer name does not match with name on uploaded file ${r.message.Customer.customerName}. Please check and try again.`),
                 indicator: 'red'
@@ -548,8 +548,8 @@ ordercapture_ocr.process_dialog = {
                       message: __('Customer address not found. Create new address.'),
                       indicator: 'red'
                     }, 10);
-                  }}
-                // console.log(customerAddress, addresses, customerAddress)
+                  }
+                }
               }
             })
             
@@ -560,61 +560,38 @@ ordercapture_ocr.process_dialog = {
           $('.ocr-loader').remove();
           if (r.message && r.message.orderDetails) {
             // Create items if they don't exist
+            // Check if item exists and create if needed
             const createItemPromises = r.message.orderDetails.map(item => {
               return new Promise((resolve) => {
-                frappe.db.exists('Item', item.itemCode)
-                  .then(exists => {
-                    if (!exists) {
-                      // frappe.call({
-                      //   method: 'frappe.client.insert',
-                      //   args: {
-                      //     doc: {
-                      //       doctype: 'Item',
-                      //       item_code: String(item.itemCode),
-                      //       item_name: String(item.itemName),
-                      //       item_group: 'Products', // Set default item group
-                      //       is_stock_item: 1,
-                      //       stock_uom: 'Nos', // Set default UOM
+                frappe.db.exists('Item', item.itemCode).then(exists => {
+                  if (!exists) {
+                    let item_doc = {
+                      doctype: 'Item',
+                      item_code: String(item.itemCode),
+                      item_name: String(item.itemName), 
+                      item_group: 'Products',
+                      is_stock_item: 1,
+                      stock_uom: 'Nos'
+                    };
 
-                      //     }
-                      //   },
-                      //   callback: () => resolve()
-                      // });
-
-                      let item_doc = {
-                        doctype: 'Item',
-                        item_code: String(item.itemCode),
-                        item_name: String(item.itemName),
-                        item_group: 'Products',
-                        is_stock_item: 1,
-                        stock_uom: 'Nos'
-                      };
-            
-                      // Check if India Compliance app exists
+                    frappe.db.exists('Module Def', 'India Compliance').then(has_ic => {
+                      if (has_ic && item.itemCode) {
+                        item_doc.gst_hsn_code = item.itemCode;
+                      }
+                      
                       frappe.call({
-                        method: 'frappe.db.exists',
-                        args: {
-                          doctype: 'Module Def',
-                          name: 'India Compliance'
-                        },
-                        callback: (r) => {
-                          if (r.message && item.itemCode) {
-                            item_doc.gst_hsn_code = item.itemCode;
-                          }
-                          
-                          frappe.call({
-                            method: 'frappe.client.insert',
-                            args: { doc: item_doc },
-                            callback: () => resolve()
-                          });
-                        }
+                        method: 'frappe.client.insert',
+                        args: { doc: item_doc },
+                        callback: () => resolve()
                       });
-                    } else {
-                      resolve();
-                    }
-                  });
+                    });
+                  } else {
+                    resolve();
+                  }
+                });
               });
             });
+
     
             // After creating items, proceed with saving processed_json
             Promise.all(createItemPromises).then(() => {
@@ -775,15 +752,8 @@ ordercapture_ocr.process_dialog = {
       // Calculate totals from table data
       const items = d.fields_dict.items.grid.data;
       const total_item_qty = items.reduce((sum, item) => sum + (item.qty || 0), 0);
-      
-      // const item_grand_total = items.reduce((sum, item) => {
-      //   const amount = parseFloat(item.totalAmount) || 0;
-      //   return sum + amount;
-      // }, 0);
+
       const item_grand_total = Number(items.reduce((sum, item) => sum + (Number(item.totalAmount) || 0), 0).toFixed(2));
-
-      // const item_grand_total = items.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
-
       // Set the calculated values
       d.set_value('total_item_qty', total_item_qty);
       d.set_value('item_grand_total', item_grand_total);
