@@ -499,27 +499,29 @@ ordercapture_ocr.process_dialog = {
         args: args,
         callback: async (r) => {
           // After receiving r.message in process_file callback
-          if (r.message.Customer.customerAddressLink) {
+          if (r.message.Customer.customerAddress) {
             if(d.get_value('customer') !== r.message.Customer.customerName){
               frappe.show_alert({
-                message: __('Customer name does not match with the uploaded file. Please check and try again.'),
+                message: __(`Customer name does not match with name on uploaded file ${r.message.Customer.customerName}. Please check and try again.`),
                 indicator: 'red'
-              }, 5);
+              }, 10);
             }
             frappe.call({
-              method: 'ordercapture_ocr.api.get_customer_addresses',
-              args: {
-                customer_name: d.get_value('customer'),
+              method: 'frappe.desk.form.load.getdoc',
+              args:{
+                doctype: 'Customer',
+                name: d.get_value('customer')
               },
               callback: async (response) => {
-                const customerAddressLink = r.message.Customer.customerAddressLink;
-                const addresses = response.message;
-                if(addresses.length > 0){
-                  // const exactMatch = addresses.find(addr => addr.name === customerAddressLink);
-        
+                
+                const addresses = response.docs[0].__onload.addr_list
+                const customerAddress = r.message.Customer.customerAddress
+                const customerName = r.message.Customer.customerName
+
+                if(addresses.length > 0){              
                   // Check similar matches
                   const similarMatch = addresses.find(addr => 
-                    customerAddressLink.includes(addr.name) || addr.name.includes(customerAddressLink)
+                    customerAddress.includes(addr.display) || addr.display.includes(customerAddress)
                   );
       
                   if (similarMatch) {
@@ -530,11 +532,11 @@ ordercapture_ocr.process_dialog = {
                       message: __('Customer address not found. Create new address.'),
                       indicator: 'red'
                     }, 10);
-                  }
-                }
-      
+                  }}
+                // console.log(customerAddress, addresses, customerAddress)
               }
-            });
+            })
+            
           }
 
           // Remove blur and loader
