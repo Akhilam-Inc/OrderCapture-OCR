@@ -354,6 +354,22 @@ ordercapture_ocr.process_dialog = {
         });
     };
 
+    // Add this event handler to the dialog events
+    d.events.create_address = function() {
+      const customer = d.get_value('customer');
+      
+      if (customer) {
+          const baseUrl = `/app/customer/${customer}`;
+          // frappe.set_route('Form', 'Customer', customer, '#contact_and_address_tab', '_blank');
+          window.open(`${baseUrl}#contact_and_address_tab`, '_blank');
+      } else {
+          frappe.show_alert({
+              message: 'Please select a customer first',
+              indicator: 'red'
+          });
+      }
+    };         
+
     fetch_customer_details = function(dialog) {
       const customer = dialog.get_value('customer');
       
