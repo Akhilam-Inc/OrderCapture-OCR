@@ -22,7 +22,8 @@ def parse_purchase_order_with_llm(text_content):
                         "properties": {
                             "customerAddressLink": {"type": "string", "description": "Link to the customer's address."},
                             "customerCode": {"type": "string", "description": "Unique code identifying the customer."},
-                            "customerName": {"type": "string", "description": "Name of the customer."}
+                            "customerName": {"type": "string", "description": "Name of the customer."},
+                            "customerAddress": {"type": "string", "description": "Delivered to Address of the customer."},
                         },
                         "required": ["customerAddressLink", "customerCode", "customerName"]
                     },

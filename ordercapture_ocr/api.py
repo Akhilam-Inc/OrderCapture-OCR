@@ -41,7 +41,7 @@ def extract_purchase_order_data(file_path: str, vendor_type: str) -> dict:
         return {
             'orderNumber': order_details.get('po_number', ''),
             'Customer':{
-                'customerAddressLink': order_details.get('customer', {}).get('customer_address', ''),
+                'customerAddress': order_details.get('customer', {}).get('customer_address', ''),
                 'customerName': order_details.get('customer', {}).get('customer_name', ''),
             },
             # 'orderDate': order_details.get('po_date', ''),
@@ -58,7 +58,8 @@ def _process_bb_order(df: pd.DataFrame) -> dict:
     po_date = df.iloc[10, 3].split(":")[1].strip() if "PO date" in str(df.iloc[10, 3]) else ""
 
     customer_address = df.iloc[5, 7]
-    customer_name = df.iloc[8, 7]
+    customer_address1 = df.iloc[6, 7]
+    customer_name = df.iloc[8, 7].split("-")[1].strip() 
 
     start_row = df[df.iloc[:, 0].str.contains("SLNO", na=False)].index[0]
     end_row = df[df.iloc[:, 3].str.contains("Total", na=False)].index[0]
@@ -70,7 +71,7 @@ def _process_bb_order(df: pd.DataFrame) -> dict:
         'po_number': po_number,
         'po_date': po_date,
         'customer': {
-            "customer_address": str(ustomer_address) or "",
+            "customer_address": str(f"{customer_address} {customer_address1}") or "",
             "customer_name": str(customer_name) or "",
         },
         'items': items
@@ -82,7 +83,7 @@ def _process_flipkart_order(df: pd.DataFrame) -> dict:
     po_date = df.iloc[0, 11]
 
     customer_address = df.iloc[2, 2]
-    customer_name = df.iloc[2, 1]
+    customer_name = df.iloc[1, 1]
 
     
     start_row = df[df.iloc[:, 0].str.contains("S. no", na=False)].index[0]
