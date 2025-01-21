@@ -310,6 +310,8 @@ ordercapture_ocr.process_dialog = {
           d.set_value('customer', doc.customer); 
           d.set_value('current_id', doc.name);
           d.set_value('status', doc.status);
+          d.set_value('customer_address_link', doc.customer_address);
+          d.set_value('customer_address', doc.customer_address_display);
          
           d.set_value('file_path', `File ${currentIndex + 1}: ${doc.file_path}`); 
 
@@ -515,46 +517,8 @@ ordercapture_ocr.process_dialog = {
         args: args,
         callback: async (r) => {
           // After receiving r.message in process_file callback
-          if (r.message.Customer.customerAddress) {
-            if(d.get_value('customer').toLowerCase() !== r.message.Customer.customerName.toLowerCase()){
-              frappe.show_alert({
-                message: __(`Customer name does not match with name on uploaded file ${r.message.Customer.customerName}. Please check and try again.`),
-                indicator: 'red'
-              }, 10);
-            }
-            frappe.call({
-              method: 'frappe.desk.form.load.getdoc',
-              args:{
-                doctype: 'Customer',
-                name: d.get_value('customer')
-              },
-              callback: async (response) => {
-                
-                const addresses = response.docs[0].__onload.addr_list
-                const customerAddress = r.message.Customer.customerAddress
-                const customerName = r.message.Customer.customerName
-
-                if(addresses.length > 0){              
-                  // Check similar matches
-                  const similarMatch = addresses.find(addr => 
-                    customerAddress.includes(addr.display) || addr.display.includes(customerAddress)
-                  );
-      
-                  if (similarMatch) {
-                    // Address found in the list
-                    d.set_value('customer_address_link', similarMatch.name);
-                  }else{
-                    frappe.show_alert({
-                      message: __('Customer address not found. Create new address.'),
-                      indicator: 'red'
-                    }, 10);
-                  }
-                }
-              }
-            })
-            
-          }
-
+          let similarMatch = ''
+          
           // Remove blur and loader
           d.$wrapper.css('filter', '');
           $('.ocr-loader').remove();
@@ -591,17 +555,18 @@ ordercapture_ocr.process_dialog = {
                 });
               });
             });
-
-    
-            // After creating items, proceed with saving processed_json
-            Promise.all(createItemPromises).then(() => {
+          Promise.all(createItemPromises).then(() => {
               frappe.call({
                 method: 'frappe.client.set_value',
                 args: {
                   doctype: 'OCR Document Processor',
                   name: d.get_value('current_id'),
                   fieldname: {
-                    'processed_json': JSON.stringify(r.message)
+                    'processed_json': JSON.stringify(r.message),
+                    'customer_address': similarMatch.name || d.get_value('customer_address_link'),
+                    'vendor_type': d.get_value('vendor_type'),
+                    // 'status': 'Processed',
+                    'customer_address_display': r.message.Customer.customerAddress || d.get_value('customer_address')
                   }
                 },
                 callback: () => {
@@ -619,6 +584,54 @@ ordercapture_ocr.process_dialog = {
               indicator: 'red'
             });
           }
+
+          if (r.message.Customer.customerAddress) {
+            const customerName = r.message.Customer.customerName;
+            const customerAddress = r.message.Customer.customerAddress;
+            
+            // Compare customer names case-insensitively once
+            const currentCustomer = d.get_value('customer');
+            const namesMatch = currentCustomer.toLowerCase() === customerName.toLowerCase();
+            
+            if (!namesMatch) {
+              frappe.show_alert({
+                message: __(`Customer name does not match with name on uploaded file ${customerName}. Please check and try again.`),
+                indicator: 'red'
+              }, 10);
+            }
+
+            // Single call to fetch customer details
+            frappe.call({
+              method: 'frappe.desk.form.load.getdoc',
+              args: {
+                doctype: 'Customer',
+                name: currentCustomer
+              },
+              callback: (response) => {
+                const addresses = response.docs[0].__onload.addr_list || [];
+                
+                if (addresses.length) {
+                  // Use more robust address comparison
+                  similarMatch = addresses.find(addr => {
+                    const normalizedUploadAddr = customerAddress.toLowerCase().replace(/\s+/g, ' ');
+                    const normalizedSavedAddr = addr.display.toLowerCase().replace(/\s+/g, ' ');
+                    return normalizedUploadAddr.includes(normalizedSavedAddr) || 
+                          normalizedSavedAddr.includes(normalizedUploadAddr);
+                  });
+                  console.log(similarMatch);
+                  if (similarMatch) {
+                    d.set_value('customer_address_link', similarMatch.name);
+                  } else {
+                    frappe.show_alert({
+                      message: __('Customer address not found. Create new address.'),
+                      indicator: 'red'
+                    }, 10);
+                  }
+                }
+              }
+            });
+          }
+
         },
         
         error: (r) => {
@@ -754,7 +767,7 @@ ordercapture_ocr.process_dialog = {
       const total_item_qty = items.reduce((sum, item) => sum + (item.qty || 0), 0);
 
       const item_grand_total = Number(items.reduce((sum, item) => sum + (Number(item.totalAmount) || 0), 0).toFixed(2));
-      // Set the calculated values
+      // Sets the calculated values
       d.set_value('total_item_qty', total_item_qty);
       d.set_value('item_grand_total', item_grand_total);
       

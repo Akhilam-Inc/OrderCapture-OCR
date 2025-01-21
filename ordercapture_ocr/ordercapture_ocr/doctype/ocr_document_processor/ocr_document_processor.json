@@ -45,7 +45,7 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "Pending\nFailed\nCompleted"
+   "options": "Pending\nFailed\nProcessed\nCompleted"
   },
   {
    "fieldname": "section_break_dsiz",
@@ -70,8 +70,9 @@
   },
   {
    "fieldname": "customer_address",
-   "fieldtype": "Data",
-   "label": "Customer Address"
+   "fieldtype": "Link",
+   "label": "Customer Address",
+   "options": "Address"
   },
   {
    "fieldname": "customer_address_display",
@@ -87,7 +88,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-01-10 10:20:40.106784",
+ "modified": "2025-01-21 08:04:39.275811",
  "modified_by": "Administrator",
  "module": "OrderCapture OCR",
  "name": "OCR Document Processor",
