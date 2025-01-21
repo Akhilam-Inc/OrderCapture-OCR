@@ -82,7 +82,7 @@ def _process_flipkart_order(df: pd.DataFrame) -> dict:
     po_number = df.iloc[0, 1]
     po_date = df.iloc[0, 11]
 
-    customer_address = df.iloc[2, 2]
+    customer_address = df.iloc[3, 2]
     customer_name = df.iloc[1, 1]
 
     
