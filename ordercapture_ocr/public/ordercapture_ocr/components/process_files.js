@@ -326,7 +326,10 @@ ordercapture_ocr.process_dialog = {
           const fileExtension = doc.file_path.split('.').pop().toLowerCase();
           if (fileExtension !== 'pdf') {
             d.set_df_property('vendor_type', 'hidden', 0);
-            d.set_value('vendor_type', doc.vendor_type);
+            // First set options
+            d.fields_dict.vendor_type.df.options = "FlipKart\nBB";
+            // Then set the value
+            d.fields_dict.vendor_type.set_input(doc.vendor_type);
           } else {
             d.set_df_property('vendor_type', 'hidden', 1); 
           }
@@ -379,9 +382,9 @@ ordercapture_ocr.process_dialog = {
         frappe.db.get_value('Customer', customer, ['customer_name', 'customer_primary_address', 'primary_address'])
         .then(r => {
           if (r.message) {
-            dialog.fields_dict.customer_address_link.set_value(r.message.customer_primary_address);
+            // dialog.fields_dict.customer_address_link.set_value(r.message.customer_primary_address);
             dialog.fields_dict.customer_name.set_value(r.message.customer_name);
-            dialog.fields_dict.customer_address.set_value(r.message.primary_address);
+            // dialog.fields_dict.customer_address.set_value(r.message.primary_address);
           }
         });
       }
@@ -516,9 +519,7 @@ ordercapture_ocr.process_dialog = {
         method: method,
         args: args,
         callback: async (r) => {
-          // After receiving r.message in process_file callback
-          let similarMatch = ''
-          
+          // After receiving r.message in process_file callback          
           // Remove blur and loader
           d.$wrapper.css('filter', '');
           $('.ocr-loader').remove();
@@ -563,10 +564,8 @@ ordercapture_ocr.process_dialog = {
                   name: d.get_value('current_id'),
                   fieldname: {
                     'processed_json': JSON.stringify(r.message),
-                    'customer_address': similarMatch.name || d.get_value('customer_address_link'),
+                    'customer_address': d.get_value('customer_address_link'),
                     'vendor_type': d.get_value('vendor_type'),
-                    // 'status': 'Processed',
-                    'customer_address_display': r.message.Customer.customerAddress || d.get_value('customer_address')
                   }
                 },
                 callback: () => {
@@ -591,14 +590,21 @@ ordercapture_ocr.process_dialog = {
             
             // Compare customer names case-insensitively once
             const currentCustomer = d.get_value('customer');
-            const namesMatch = currentCustomer.toLowerCase() === customerName.toLowerCase();
+            // const namesMatch = currentCustomer.toLowerCase() === customerName.toLowerCase();
             
-            if (!namesMatch) {
-              frappe.show_alert({
-                message: __(`Customer name does not match with name on uploaded file ${customerName}. Please check and try again.`),
-                indicator: 'red'
-              }, 10);
-            }
+            // const currentCustomerWords = currentCustomer.toLowerCase().split(/\s+/);
+            // const uploadedCustomerWords = customerName.toLowerCase().split(/\s+/);
+
+            // const hasMatchingWords = currentCustomerWords.some(word => 
+            //   uploadedCustomerWords.includes(word)
+            // );
+
+            // if (!hasMatchingWords) {
+            //   frappe.show_alert({
+            //     message: __(`Customer name does not match with name on uploaded file ${customerName}. Please check and try again.`),
+            //     indicator: 'red'
+            //   }, 10);
+            // }
 
             // Single call to fetch customer details
             frappe.call({
@@ -612,15 +618,34 @@ ordercapture_ocr.process_dialog = {
                 
                 if (addresses.length) {
                   // Use more robust address comparison
-                  similarMatch = addresses.find(addr => {
+                  let similarMatch = addresses.find(addr => {
                     const normalizedUploadAddr = customerAddress.toLowerCase().replace(/\s+/g, ' ');
                     const normalizedSavedAddr = addr.display.toLowerCase().replace(/\s+/g, ' ');
-                    return normalizedUploadAddr.includes(normalizedSavedAddr) || 
-                          normalizedSavedAddr.includes(normalizedUploadAddr);
+                    
+                    // Calculate similarity percentage
+                    const longerLength = Math.max(normalizedUploadAddr.length, normalizedSavedAddr.length);
+                    const editDistance = levenshteinDistance(normalizedUploadAddr, normalizedSavedAddr);
+                    const similarityPercentage = ((longerLength - editDistance) / longerLength) * 100;
+                    
+                    return similarityPercentage > 50;
                   });
-                  console.log(similarMatch);
+                  
                   if (similarMatch) {
-                    d.set_value('customer_address_link', similarMatch.name);
+                    frappe.call({
+                      method: 'frappe.client.set_value',
+                      args: {
+                        doctype: 'OCR Document Processor',
+                        name: d.get_value('current_id'),
+                        fieldname: {
+                          'customer_address': similarMatch.name,
+                          'customer_address_display': similarMatch.display
+                        }
+                      },
+                      callback: () => {
+                        d.set_value('customer_address_link', similarMatch.name);
+                      }
+                    });
+
                   } else {
                     frappe.show_alert({
                       message: __('Customer address not found. Create new address.'),
@@ -969,7 +994,7 @@ ordercapture_ocr.process_dialog = {
 };
 
 // Create a function to refresh all totals
-const refreshTotalFields = (d) => {
+function refreshTotalFields(d){
   const items = d.fields_dict.items.grid.data;
   
   // Calculate total item quantity
@@ -1017,3 +1042,22 @@ function refreshPageInBackground() {
   // Add to document
   document.body.appendChild(iframe);
 }
+function levenshteinDistance(str1, str2) {
+  const matrix = Array(str2.length + 1).fill().map(() => Array(str1.length + 1).fill(0));
+  
+  for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+  for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+  
+  for (let j = 1; j <= str2.length; j++) {
+    for (let i = 1; i <= str1.length; i++) {
+      const cost = str1[i-1] === str2[j-1] ? 0 : 1;
+      matrix[j][i] = Math.min(
+        matrix[j-1][i] + 1,
+        matrix[j][i-1] + 1,
+        matrix[j-1][i-1] + cost
+      );
+    }
+  }
+  return matrix[str2.length][str1.length];
+}
+

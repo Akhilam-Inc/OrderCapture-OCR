@@ -59,7 +59,7 @@ def _process_bb_order(df: pd.DataFrame) -> dict:
 
     customer_address = df.iloc[5, 7]
     customer_address1 = df.iloc[6, 7]
-    customer_name = df.iloc[8, 7].split("-")[1].strip() 
+    customer_name = df.iloc[0, 0]
 
     start_row = df[df.iloc[:, 0].str.contains("SLNO", na=False)].index[0]
     end_row = df[df.iloc[:, 3].str.contains("Total", na=False)].index[0]
