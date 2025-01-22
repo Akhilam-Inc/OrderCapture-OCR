@@ -15,14 +15,14 @@ def parse_purchase_order_with_llm(text_content):
                 "properties": {
                     "orderNumber":{
                         "type": "string",
-                        "description": "Unique code identifying the purchase order."
+                        "description": "Unique code identifying the purchase order or PO No or PO Number."
                     },
                     "Customer": {
                         "type": "object",
                         "properties": {
                             "customerCode": {"type": "string", "description": "Unique code identifying the customer."},
                             "customerName": {"type": "string", "description": "Name of the customer."},
-                            "customerAddress": {"type": "string", "description": "Delivered to Address of the customer."},
+                            "customerAddress": {"type": "string", "description": "Delivered to Address of the customer or Billing Address of the customer if Delivered to Address is not available."},
                         },
                         "required": ["customerAddressLink", "customerCode", "customerName"]
                     },
