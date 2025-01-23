@@ -614,52 +614,57 @@ ordercapture_ocr.process_dialog = {
                 name: currentCustomer
               },
               callback: (response) => {
+                console.log("Response: ",response)
                 const addresses = response.docs[0].__onload.addr_list || [];
+                console.log("Addresses: ",addresses)
                 
                 if (addresses.length) {
                   // Use more robust address comparison
-                  // let similarMatch = addresses.find(addr => {
-                  //   const normalizedUploadAddr = customerAddress.toLowerCase().replace(/\s+/g, ' ');
-                  //   const normalizedSavedAddr = addr.display.toLowerCase().replace(/\s+/g, ' ');
-                    
-                  //   // Calculate similarity percentage
-                  //   const longerLength = Math.max(normalizedUploadAddr.length, normalizedSavedAddr.length);
-                  //   const editDistance = levenshteinDistance(normalizedUploadAddr, normalizedSavedAddr);
-                  //   const similarityPercentage = ((longerLength - editDistance) / longerLength) * 100;
-                    
-                  //   return similarityPercentage > 50;
-                  // });
-
                   let similarMatch = addresses.find(addr => {
-                    // Normalize addresses by removing special characters and extra spaces
-                    const normalizedUploadAddr = customerAddress.toLowerCase()
-                      .replace(/[^\w\s]/g, '')
-                      .replace(/\s+/g, ' ')
-                      .trim();
-                      
-                    const normalizedSavedAddr = addr.display.toLowerCase()
-                      .replace(/[^\w\s]/g, '')
-                      .replace(/\s+/g, ' ')
-                      .trim();
+                    const normalizedUploadAddr = customerAddress.toLowerCase().replace(/\s+/g, ' ');
+                    const normalizedSavedAddr = addr.display.toLowerCase().replace(/\s+/g, ' ');
                     
-                    // Calculate similarity using improved Levenshtein with word boundaries
-                    const uploadWords = normalizedUploadAddr.split(' ');
-                    const savedWords = normalizedSavedAddr.split(' ');
-                    
-                    // Check for exact word matches first
-                    const exactMatches = uploadWords.filter(word => savedWords.includes(word)).length;
-                    const matchRatio = exactMatches / Math.max(uploadWords.length, savedWords.length);
-                    
-                    // Use Levenshtein as secondary check
+                    // Calculate similarity percentage
+                    const longerLength = Math.max(normalizedUploadAddr.length, normalizedSavedAddr.length);
                     const editDistance = levenshteinDistance(normalizedUploadAddr, normalizedSavedAddr);
-                    const similarityPercentage = ((Math.max(normalizedUploadAddr.length, normalizedSavedAddr.length) - editDistance) / Math.max(normalizedUploadAddr.length, normalizedSavedAddr.length)) * 100;
+                    const similarityPercentage = ((longerLength - editDistance) / longerLength) * 100;
                     
-                    // Return true if either condition is met
-                    return matchRatio > 0.5 || similarityPercentage > 50;
+                    console.log("Similarity Percentage: ",similarityPercentage)
+                    
+                    return similarityPercentage > 50;
                   });
+
+                  // let similarMatch = addresses.find(addr => {
+                  //   // Normalize addresses by removing special characters and extra spaces
+                  //   const normalizedUploadAddr = customerAddress.toLowerCase()
+                  //     .replace(/[^\w\s]/g, '')
+                  //     .replace(/\s+/g, ' ')
+                  //     .trim();
+                      
+                  //   const normalizedSavedAddr = addr.display.toLowerCase()
+                  //     .replace(/[^\w\s]/g, '')
+                  //     .replace(/\s+/g, ' ')
+                  //     .trim();
+                    
+                  //   // Calculate similarity using improved Levenshtein with word boundaries
+                  //   const uploadWords = normalizedUploadAddr.split(' ');
+                  //   const savedWords = normalizedSavedAddr.split(' ');
+                    
+                  //   // Check for exact word matches first
+                  //   const exactMatches = uploadWords.filter(word => savedWords.includes(word)).length;
+                  //   const matchRatio = exactMatches / Math.max(uploadWords.length, savedWords.length);
+                    
+                  //   // Use Levenshtein as secondary check
+                  //   const editDistance = levenshteinDistance(normalizedUploadAddr, normalizedSavedAddr);
+                  //   const similarityPercentage = ((Math.max(normalizedUploadAddr.length, normalizedSavedAddr.length) - editDistance) / Math.max(normalizedUploadAddr.length, normalizedSavedAddr.length)) * 100;
+                    
+                  //   // Return true if either condition is met
+                  //   return matchRatio > 0.5 || similarityPercentage > 50;
+                  // });
                   
                   
                   if (similarMatch) {
+                    console.log("Matched Address:", similarMatch.name, similarMatch.display);
                     frappe.call({
                       method: 'frappe.client.set_value',
                       args: {
