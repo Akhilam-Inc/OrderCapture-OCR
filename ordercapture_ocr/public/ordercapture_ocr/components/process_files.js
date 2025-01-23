@@ -620,7 +620,10 @@ ordercapture_ocr.process_dialog = {
                 
                 if (addresses.length) {
                   // Use more robust address comparison
-                  let similarMatch = addresses.find(addr => {
+                  let bestMatch = null;
+                  let highestSimilarity = 0;
+
+                  addresses.forEach(addr => {
                     const normalizedUploadAddr = customerAddress.toLowerCase().replace(/\s+/g, ' ');
                     const normalizedSavedAddr = addr.display.toLowerCase().replace(/\s+/g, ' ');
                     
@@ -629,54 +632,30 @@ ordercapture_ocr.process_dialog = {
                     const editDistance = levenshteinDistance(normalizedUploadAddr, normalizedSavedAddr);
                     const similarityPercentage = ((longerLength - editDistance) / longerLength) * 100;
                     
-                    console.log("Similarity Percentage: ",similarityPercentage)
+                    console.log("Address:", addr.name, "Similarity:", similarityPercentage);
                     
-                    return similarityPercentage > 50;
+                    if (similarityPercentage > highestSimilarity) {
+                      highestSimilarity = similarityPercentage;
+                      bestMatch = addr;
+                    }
                   });
 
-                  // let similarMatch = addresses.find(addr => {
-                  //   // Normalize addresses by removing special characters and extra spaces
-                  //   const normalizedUploadAddr = customerAddress.toLowerCase()
-                  //     .replace(/[^\w\s]/g, '')
-                  //     .replace(/\s+/g, ' ')
-                  //     .trim();
-                      
-                  //   const normalizedSavedAddr = addr.display.toLowerCase()
-                  //     .replace(/[^\w\s]/g, '')
-                  //     .replace(/\s+/g, ' ')
-                  //     .trim();
-                    
-                  //   // Calculate similarity using improved Levenshtein with word boundaries
-                  //   const uploadWords = normalizedUploadAddr.split(' ');
-                  //   const savedWords = normalizedSavedAddr.split(' ');
-                    
-                  //   // Check for exact word matches first
-                  //   const exactMatches = uploadWords.filter(word => savedWords.includes(word)).length;
-                  //   const matchRatio = exactMatches / Math.max(uploadWords.length, savedWords.length);
-                    
-                  //   // Use Levenshtein as secondary check
-                  //   const editDistance = levenshteinDistance(normalizedUploadAddr, normalizedSavedAddr);
-                  //   const similarityPercentage = ((Math.max(normalizedUploadAddr.length, normalizedSavedAddr.length) - editDistance) / Math.max(normalizedUploadAddr.length, normalizedSavedAddr.length)) * 100;
-                    
-                  //   // Return true if either condition is met
-                  //   return matchRatio > 0.5 || similarityPercentage > 50;
-                  // });
-                  
-                  
-                  if (similarMatch) {
-                    console.log("Matched Address:", similarMatch.name, similarMatch.display);
+                  if (bestMatch) {
+                    console.log("Best Match:", bestMatch.name, "Similarity:", highestSimilarity);
+                  // Set the matched address    
+                    console.log("Matched Address:", bestMatch.name, bestMatch.display);
                     frappe.call({
                       method: 'frappe.client.set_value',
                       args: {
                         doctype: 'OCR Document Processor',
                         name: d.get_value('current_id'),
                         fieldname: {
-                          'customer_address': similarMatch.name,
-                          'customer_address_display': similarMatch.display
+                          'customer_address': bestMatch.name,
+                          'customer_address_display': bestMatch.display
                         }
                       },
                       callback: () => {
-                        d.set_value('customer_address_link', similarMatch.name);
+                        d.set_value('customer_address_link', bestMatch.name);
                       }
                     });
 
