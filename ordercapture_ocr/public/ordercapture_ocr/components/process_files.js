@@ -590,22 +590,7 @@ ordercapture_ocr.process_dialog = {
             
             // Compare customer names case-insensitively once
             const currentCustomer = d.get_value('customer');
-            // const namesMatch = currentCustomer.toLowerCase() === customerName.toLowerCase();
-            
-            // const currentCustomerWords = currentCustomer.toLowerCase().split(/\s+/);
-            // const uploadedCustomerWords = customerName.toLowerCase().split(/\s+/);
-
-            // const hasMatchingWords = currentCustomerWords.some(word => 
-            //   uploadedCustomerWords.includes(word)
-            // );
-
-            // if (!hasMatchingWords) {
-            //   frappe.show_alert({
-            //     message: __(`Customer name does not match with name on uploaded file ${customerName}. Please check and try again.`),
-            //     indicator: 'red'
-            //   }, 10);
-            // }
-
+          
             // Single call to fetch customer details
             frappe.call({
               method: 'frappe.desk.form.load.getdoc',
@@ -614,14 +599,14 @@ ordercapture_ocr.process_dialog = {
                 name: currentCustomer
               },
               callback: (response) => {
-                console.log("Response: ",response)
+                console.log("Respon/se: ",response)
                 const addresses = response.docs[0].__onload.addr_list || [];
-                console.log("Addresses: ",addresses)
+                // console.log("Addresses: ",addresses)
                 
                 if (addresses.length) {
                   // Use more robust address comparison
                   let bestMatch = null;
-                  let highestSimilarity = 0;
+                  let highestSimilarity = 30;
 
                   addresses.forEach(addr => {
                     const normalizedUploadAddr = customerAddress.toLowerCase().replace(/\s+/g, ' ');
@@ -632,7 +617,7 @@ ordercapture_ocr.process_dialog = {
                     const editDistance = levenshteinDistance(normalizedUploadAddr, normalizedSavedAddr);
                     const similarityPercentage = ((longerLength - editDistance) / longerLength) * 100;
                     
-                    console.log("Address:", addr.name, "Similarity:", similarityPercentage);
+                    // console.log("Address:", addr.name, "Similarity:", similarityPercentage);
                     
                     if (similarityPercentage > highestSimilarity) {
                       highestSimilarity = similarityPercentage;
@@ -641,7 +626,7 @@ ordercapture_ocr.process_dialog = {
                   });
 
                   if (bestMatch) {
-                    console.log("Best Match:", bestMatch.name, "Similarity:", highestSimilarity);
+                    // console.log("Best Match:", bestMatch.name, "Similarity:", highestSimilarity);
                   // Set the matched address    
                     console.log("Matched Address:", bestMatch.name, bestMatch.display);
                     frappe.call({
@@ -810,10 +795,12 @@ ordercapture_ocr.process_dialog = {
       d.set_value('item_grand_total', item_grand_total);
       
       // Calculate total net amount (sum of rates without taxes)
+      // const total_net_amount = processed_data.orderDetails.reduce((sum, item) => {
+      //   return Number((sum + (item.rate * item.qty)).toFixed(2));
+      // }, 0);
       const total_net_amount = processed_data.orderDetails.reduce((sum, item) => {
-        return Number((sum + (item.rate * item.qty)).toFixed(2));
+        return Number((sum + (item.totalAmount)).toFixed(2));
       }, 0);
-
       // Set the total net amount field
       d.set_value('total_net_amount', total_net_amount);
 
@@ -942,7 +929,8 @@ ordercapture_ocr.process_dialog = {
         },
         callback: (r) => {
           if(r.message) {
-            const price_list = r.message.selling_price_list || 'Standard Selling';
+            // const price_list = r.message.selling_price_list || 'Standard Selling';
+            const price_list = 'Standard Selling';
             const price_list_currency = r.message.price_list_rate || "INR";
             
             // Step 2: Get price list rates for all items
