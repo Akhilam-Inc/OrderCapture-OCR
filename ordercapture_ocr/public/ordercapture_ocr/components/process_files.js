@@ -930,8 +930,8 @@ ordercapture_ocr.process_dialog = {
         callback: (r) => {
           if(r.message) {
             // const price_list = r.message.selling_price_list || 'Standard Selling';
-            const price_list = 'Standard Selling';
-            const price_list_currency = r.message.price_list_rate || "INR";
+            const price_list = r.message.selling_price_list || 'Standard Selling';
+            const price_list_currency = r.message.price_list_currency || "INR";
             
             // Step 2: Get price list rates for all items
             items.forEach((item, idx) => {
