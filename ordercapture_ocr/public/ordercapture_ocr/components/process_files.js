@@ -57,6 +57,12 @@ ordercapture_ocr.process_dialog = {
           options: 'OCR Document Processor',
         },
         {
+          fieldtype: 'Data',
+          fieldname: 'file_path',
+          label: 'File Path',
+          read_only: 1
+        },
+        {
             fieldtype: 'Column Break',
             fieldname: 'col_3'
         },
@@ -78,13 +84,20 @@ ordercapture_ocr.process_dialog = {
           fieldname: 'po_number',
           label: 'PO Number',
           read_only: 1
-        },        
+        },    
         {
-          fieldtype: 'Data',
-          fieldname: 'file_path',
-          label: 'File Path',
+          fieldtype: 'Date',
+          fieldname: 'po_date',
+          label: 'PO Date',
           read_only: 1
         },
+        {
+          fieldtype: 'Date',
+          fieldname: 'po_expiry_date',
+          label: 'PO Expiry Date',
+          read_only: 1
+        },    
+        
         {
           fieldtype: 'Data',
           fieldname: 'status',
@@ -152,7 +165,7 @@ ordercapture_ocr.process_dialog = {
               fieldtype: 'Data',
               label: 'Item Name',
               in_list_view: 1,
-              columns: 1
+              columns: 3
             },
             {
               fieldname: 'qty',
@@ -190,7 +203,7 @@ ordercapture_ocr.process_dialog = {
               fieldname: 'landing_rate',
               fieldtype: 'Currency',
               label: 'Landing Rate',
-              in_list_view: 1,
+              in_list_view: 0,
               columns: 2
             }
             ,
@@ -280,6 +293,9 @@ ordercapture_ocr.process_dialog = {
           d.fields_dict.items.grid.data = [];
           d.fields_dict.items.grid.refresh();
           d.set_value('po_number', '');
+          d.set_value('po_date', '');
+          d.set_value('po_expiry_date', '');
+          
           refreshTotalFields(d)
           loadDocument(documents[currentIndex].name);
 
@@ -293,6 +309,8 @@ ordercapture_ocr.process_dialog = {
           d.fields_dict.items.grid.data = [];
           d.fields_dict.items.grid.refresh();
           d.set_value('po_number', '');
+          d.set_value('po_date', '');
+          d.set_value('po_expiry_date', '');
           refreshTotalFields(d)
           loadDocument(documents[currentIndex].name);
 
@@ -708,6 +726,9 @@ ordercapture_ocr.process_dialog = {
           totalAmount: item.totalAmount
         })),
         orderNumber: d.get_value('po_number'),
+        orderDate: d.get_value('po_date'),
+        orderExpiryDate: d.get_value('po_expiry_date'),
+
         totals: {
           totalItemQty: d.get_value('total_item_qty'),
           itemGrandTotal: d.get_value('item_grand_total')
@@ -785,6 +806,8 @@ ordercapture_ocr.process_dialog = {
         }
       });
       d.set_value('po_number',  processed_data.orderNumber);
+      d.set_value('po_date', processed_data.orderDate);
+      d.set_value('po_expiry_date', processed_data.orderExpiryDate);
       // Calculate totals from table data
       const items = d.fields_dict.items.grid.data;
       const total_item_qty = items.reduce((sum, item) => sum + (item.qty || 0), 0);
@@ -818,6 +841,8 @@ ordercapture_ocr.process_dialog = {
     d.events.post_sales_order = function() {
       const items_data = d.fields_dict.items.grid.data;
       const po_number = d.get_value('po_number');
+      const po_date = d.get_value('po_date');
+      const po_expiry_date = d.get_value('po_expiry_date');
 
       if (items_data.length === 0) {
         frappe.show_alert({
@@ -845,7 +870,9 @@ ordercapture_ocr.process_dialog = {
             customerName: d.get_value('customer_name'),
             customerAddressLink: d.get_value('customer_address_link'),
             customerAddress: d.get_value('customer_address'),
-            poNumber: po_number
+            poNumber: po_number,
+            poDate: po_date,
+            poExpiryDate: po_expiry_date
           },
           orderDetails: items_data.map(item => ({
             itemCode: item.itemCode,
