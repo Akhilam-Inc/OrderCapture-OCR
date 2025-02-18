@@ -7,7 +7,8 @@
  "field_order": [
   "settings_section",
   "source_warehouse_for_sales_order",
-  "openai_api_secret"
+  "openai_api_secret",
+  "gpt_model"
  ],
  "fields": [
   {
@@ -26,12 +27,19 @@
    "fieldname": "openai_api_secret",
    "fieldtype": "Password",
    "label": "OpenAI API Secret"
+  },
+  {
+   "fieldname": "gpt_model",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "GPT Model",
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-12-25 12:19:06.776552",
+ "modified": "2025-02-18 10:34:26.918231",
  "modified_by": "Administrator",
  "module": "OrderCapture OCR",
  "name": "Order Capture OCR Configuration",

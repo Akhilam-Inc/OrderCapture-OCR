@@ -5,6 +5,7 @@ import frappe
 def parse_purchase_order_with_llm(text_content):
     ocr_config = frappe.get_single("Order Capture OCR Configuration")
     openai.api_key = ocr_config.get_password("openai_api_secret")
+    openai_model = ocr_config.gpt_model
 
     functions = [
         {
@@ -73,7 +74,7 @@ def parse_purchase_order_with_llm(text_content):
     }
 
     response = openai.chat.completions.create(
-        model="gpt-3.5-turbo",  # or gpt-4-0613, etc.
+        model=openai_model,  # or gpt-4-0613, etc.
         messages=[system_message, user_message],
         functions=functions,
         function_call={"name": "parse_purchase_order"}
