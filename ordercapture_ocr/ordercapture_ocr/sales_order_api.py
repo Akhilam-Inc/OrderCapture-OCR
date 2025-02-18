@@ -61,6 +61,8 @@ def create_sales_order(response):
     
         customer_name = response.get('Customer').get('customerName')
         po_number = response.get('Customer').get('poNumber')
+        po_date = response.get('Customer').get('poDate')
+
 
         # Fetch customer item codes mapping
         customer_item_codes = get_customer_item_code(response)
@@ -81,8 +83,12 @@ def create_sales_order(response):
             "delivery_date": frappe.utils.nowdate(),
             "set_warehouse": source_warehouse,
             "po_no": po_number,
+            "po_date": po_date,
             "items": []
         })
+
+        if check_custom_field_exists("custom_po_expiry_date"):
+            sales_order.custom_po_expiry_date = response.get('Customer').get('customPoExpiryDate')
 
         # Add items to the Sales Order
         for item in response.get('orderDetails', []):
@@ -108,4 +114,8 @@ def create_sales_order(response):
         frappe.log_error(frappe.get_traceback(), "Error in create sales order from response")
         frappe.msgprint("Error in creating sales order")
 
-
+def check_custom_field_exists(fieldname, doctype="Sales Order"):
+    meta = frappe.get_meta(doctype)  # Fetch metadata for Sales Order
+    if meta.has_field(fieldname):
+        return True
+    return False

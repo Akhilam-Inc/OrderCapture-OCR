@@ -18,6 +18,14 @@ def parse_purchase_order_with_llm(text_content):
                         "type": "string",
                         "description": "PO Number or Purchase Order Number or Unique code identifying the purchase order or PO No or PO Number."
                     },
+                    "orderDate": {
+                        "type": "string",
+                        "description": "The order date in YYYY-MM-DD format."
+                    },
+                    "orderExpiryDate": {
+                        "type": "string",
+                        "description": "The expiry date in YYYY-MM-DD format."
+                    },
                     "Customer": {
                         "type": "object",
                         "properties": {
@@ -61,7 +69,7 @@ def parse_purchase_order_with_llm(text_content):
 
     system_message = {
         "role": "system",
-        "content": "You are an assistant that extracts purchase order details. We are supplier with name GO DESI MANDI PVT LTD. In purchase Order our details will be titled as vendor details so make sure not to extract details from that section."
+        "content": "You are an assistant that extracts purchase order details. We are supplier with name GO DESI MANDI PVT LTD. In purchase Order our details will be titled as vendor details so make sure not to extract address from that section."
     }
 
     user_message = {
