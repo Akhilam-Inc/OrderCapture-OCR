@@ -61,7 +61,7 @@ def parse_purchase_order_with_llm(text_content):
 
     system_message = {
         "role": "system",
-        "content": "You are an assistant that extracts purchase order details."
+        "content": "You are an assistant that extracts purchase order details. We are supplier with name GO DESI MANDI PVT LTD. In purchase Order our details will be titled as vendor details so make sure not to extract details from that section."
     }
 
     user_message = {
