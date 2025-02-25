@@ -154,9 +154,8 @@ ordercapture_ocr.process_dialog = {
           fields: [
             {
               fieldname: 'itemCode',
-              fieldtype: 'Link',
+              fieldtype: 'Data',
               label: 'Item Code',
-              options: 'Item',
               in_list_view: 1,
               columns: 1
             },
@@ -542,54 +541,20 @@ ordercapture_ocr.process_dialog = {
           d.$wrapper.css('filter', '');
           $('.ocr-loader').remove();
           if (r.message && r.message.orderDetails) {
-            // Create items if they don't exist
-            // Check if item exists and create if needed
-            const createItemPromises = r.message.orderDetails.map(item => {
-              return new Promise((resolve) => {
-                frappe.db.exists('Item', item.itemCode).then(exists => {
-                  if (!exists) {
-                    let item_doc = {
-                      doctype: 'Item',
-                      item_code: String(item.itemCode),
-                      item_name: String(item.itemName), 
-                      item_group: 'Products',
-                      is_stock_item: 1,
-                      stock_uom: 'Nos'
-                    };
-
-                    frappe.db.exists('Module Def', 'India Compliance').then(has_ic => {
-                      if (has_ic && item.itemCode) {
-                        item_doc.gst_hsn_code = item.itemCode;
-                      }
-                      
-                      frappe.call({
-                        method: 'frappe.client.insert',
-                        args: { doc: item_doc },
-                        callback: () => resolve()
-                      });
-                    });
-                  } else {
-                    resolve();
-                  }
-                });
-              });
-            });
-          Promise.all(createItemPromises).then(() => {
-              frappe.call({
-                method: 'frappe.client.set_value',
-                args: {
-                  doctype: 'OCR Document Processor',
-                  name: d.get_value('current_id'),
-                  fieldname: {
-                    'processed_json': JSON.stringify(r.message),
-                    'customer_address': d.get_value('customer_address_link'),
-                    'vendor_type': d.get_value('vendor_type'),
-                  }
-                },
-                callback: () => {
-                  setTableFromProcessedJson(d, JSON.stringify(r.message));
+            frappe.call({
+              method: 'frappe.client.set_value',
+              args: {
+                doctype: 'OCR Document Processor',
+                name: d.get_value('current_id'),
+                fieldname: {
+                  'processed_json': JSON.stringify(r.message),
+                  'customer_address': d.get_value('customer_address_link'),
+                  'vendor_type': d.get_value('vendor_type'),
                 }
-              });
+              },
+              callback: () => {
+                setTableFromProcessedJson(d, JSON.stringify(r.message));
+              }
             });
           }else{
             // Remove loader on error

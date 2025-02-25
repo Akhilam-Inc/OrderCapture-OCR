@@ -41,8 +41,13 @@ def get_customer_item_code(response):
         for item in response.get('orderDetails', []):
             customer_item_code = item.get('itemCode')
             mapped_item_code = frappe.db.get_value('Customer Item Code Mapping',{'customer': customer_name, 'customer_item_code': customer_item_code},'item_code')
+            no_mapped_item_codes = []
             if mapped_item_code:
                 item_code_mapping[customer_item_code] = mapped_item_code
+            else:
+                no_mapped_item_codes.append(customer_item_code)
+        if no_mapped_item_codes:
+            frappe.throw(_("Item codes <b>{0}</b> are not mapped for customer <b>{1}</b>. Please map the item codes in <a href='/app/customer-item-code-mapping'>Customer Item Code Mapping</a>").format(', '.join(no_mapped_item_codes), customer_name))
         return item_code_mapping
     except Exception as e:
         print(f"Error in get_customer_item_code: {str(e)}")
@@ -71,10 +76,6 @@ def create_sales_order(response):
         if not frappe.db.exists('Customer', customer_name):
             print(f"Customer {customer_name} not found")
             frappe.throw("Customer not found")
-        
-        # Check if customer item codes are fetched
-        if not customer_item_codes:
-            frappe.throw("Unable to fetch customer item codes")
 
         # Create Sales Order document
         sales_order = frappe.get_doc({
@@ -93,9 +94,6 @@ def create_sales_order(response):
         # Add items to the Sales Order
         for item in response.get('orderDetails', []):
             item_code = item.get('itemCode')
-
-            if item_code not in customer_item_codes:
-                frappe.throw(f"Item code '{item_code}' not found in customer item codes mapping")
 
             sales_order.append("items", {
                 "item_code": customer_item_codes[item_code],
