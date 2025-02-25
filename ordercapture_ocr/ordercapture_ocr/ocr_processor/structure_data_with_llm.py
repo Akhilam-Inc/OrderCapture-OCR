@@ -16,7 +16,7 @@ def parse_purchase_order_with_llm(text_content):
                 "properties": {
                     "orderNumber":{
                         "type": "string",
-                        "description": "Unique code identifying the purchase order or PO No or PO Number."
+                        "description": "PO Number or Purchase Order Number or Unique code identifying the purchase order or PO No or PO Number."
                     },
                     "orderDate": {
                         "type": "string",
