@@ -1,0 +1,75 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-02-25 10:49:36.628916",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "test_results",
+  "section_break_wyrv",
+  "gemini_results",
+  "compared_result",
+  "column_break_vqip",
+  "run_test",
+  "result"
+ ],
+ "fields": [
+  {
+   "fieldname": "run_test",
+   "fieldtype": "Button",
+   "label": "Get OpenAI Result"
+  },
+  {
+   "fieldname": "column_break_vqip",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "result",
+   "fieldtype": "JSON",
+   "label": "OpenAI Result"
+  },
+  {
+   "fieldname": "test_results",
+   "fieldtype": "Attach",
+   "label": "Test results"
+  },
+  {
+   "fieldname": "compared_result",
+   "fieldtype": "Text",
+   "label": "Gemini Result"
+  },
+  {
+   "fieldname": "gemini_results",
+   "fieldtype": "Button",
+   "label": "Get Gemini Result"
+  },
+  {
+   "fieldname": "section_break_wyrv",
+   "fieldtype": "Section Break"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-02-26 10:49:18.619217",
+ "modified_by": "Administrator",
+ "module": "OrderCapture OCR",
+ "name": "Test OCR",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

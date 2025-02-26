@@ -1,0 +1,22 @@
+{
+ "attach_print": 0,
+ "channel": "Telegram",
+ "creation": "2025-02-19 09:07:59.774982",
+ "days_in_advance": 0,
+ "docstatus": 0,
+ "doctype": "Telegram Notification",
+ "document_type": "Customer",
+ "dynamic_recipients": 0,
+ "enabled": 1,
+ "event": "Save",
+ "idx": 0,
+ "is_standard": 1,
+ "message": "Hello, customer {{ doc.name }} updated",
+ "modified": "2025-02-19 09:07:59.774982",
+ "modified_by": "Administrator",
+ "module": "OrderCapture OCR",
+ "name": "Customer Doctype",
+ "owner": "Administrator",
+ "subject": "{{ doc.name }}",
+ "telegram_user": "Administrator-NasirucodeBot"
+}

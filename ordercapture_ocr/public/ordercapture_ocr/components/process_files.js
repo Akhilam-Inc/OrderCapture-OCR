@@ -485,11 +485,20 @@ ordercapture_ocr.process_dialog = {
       `;
       $('body').append(loader);
 
+      const ocr_model = await frappe.db.get_single_value("Order Capture OCR Configuration", "ocr_model");
+
       // Check file extension
       const fileExtension = actual_file_path.split('.').pop().toLowerCase();
-      const method = fileExtension === 'pdf' ? 
-        'ordercapture_ocr.api.get_ocr_details' : 
-        'ordercapture_ocr.api.extract_purchase_order_data';
+      if (fileExtension === 'pdf') {
+        method = ocr_model === 'Gemini' ? 
+          'ordercapture_ocr.gemini_ocr.api.extract_structured_data' : 
+          'ordercapture_ocr.api.get_ocr_details';
+      } else {
+        method = 'ordercapture_ocr.api.extract_purchase_order_data';
+      }
+      // const method = fileExtension === 'pdf' ? 
+      //   'ordercapture_ocr.api.get_ocr_details' : 
+      //   'ordercapture_ocr.api.extract_purchase_order_data';
 
       let args = {
         file_path: actual_file_path
@@ -523,7 +532,9 @@ ordercapture_ocr.process_dialog = {
           // Remove blur and loader
           d.$wrapper.css('filter', '');
           $('.ocr-loader').remove();
+          console.log('Result', (r.message));
           if (r.message && r.message.orderDetails) {
+            
             // Create items if they don't exist
             // Check if item exists and create if needed
             const createItemPromises = r.message.orderDetails.map(item => {
@@ -599,7 +610,7 @@ ordercapture_ocr.process_dialog = {
                 name: currentCustomer
               },
               callback: (response) => {
-                console.log("Respon/se: ",response)
+                // console.log("Respon/se: ",response)
                 const addresses = response.docs[0].__onload.addr_list || [];
                 // console.log("Addresses: ",addresses)
                 
