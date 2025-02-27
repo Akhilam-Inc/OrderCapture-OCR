@@ -86,13 +86,13 @@ ordercapture_ocr.process_dialog = {
           read_only: 1
         },    
         {
-          fieldtype: 'Date',
+          fieldtype: 'Data',
           fieldname: 'po_date',
           label: 'PO Date',
           read_only: 1
         },
         {
-          fieldtype: 'Date',
+          fieldtype: 'Data',
           fieldname: 'po_expiry_date',
           label: 'PO Expiry Date',
           read_only: 1
@@ -776,8 +776,8 @@ ordercapture_ocr.process_dialog = {
         }
       });
       d.set_value('po_number',  processed_data.orderNumber);
-      d.set_value('po_date', moment(processed_data.orderDate, 'dd-mm-yyyy'));
-      d.set_value('po_expiry_date', moment(processed_data.orderExpiryDate, 'dd-mm-yyyy'));
+      d.set_value('po_date', processed_data.orderDate);
+      d.set_value('po_expiry_date', processed_data.orderExpiryDate);
       // Calculate totals from table data
       const items = d.fields_dict.items.grid.data;
       const total_item_qty = items.reduce((sum, item) => sum + (item.qty || 0), 0);
