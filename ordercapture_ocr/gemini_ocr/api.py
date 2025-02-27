@@ -49,13 +49,13 @@ def is_file_private(file_path):
 def extract_structured_data(file_path: str, model: BaseModel = Order):
     # Upload the file to the File API
     try:
-        file_type = 'private' if is_file_private(file_path) else 'public'
-        # file_path = frappe.get_site_path() + file_path
-        file_path = os.path.join(frappe.get_site_path(file_type), 'files', file_path)
+        # file_type = 'private' if is_file_private(file_path) else 'public'
+        file_path = frappe.get_site_path() + file_path
+        # file_path = os.path.join(frappe.get_site_path(file_type), 'files', file_path)
         # file_path = "/home/frappeuser/frappe-bench/sites/ocr.akhilaminc.com/public" + file_path
 
-        if not os.path.exists(file_path):
-            frappe.log_error(title="File Missing", message=f"File not found: {file_path}")
+        # if not os.path.exists(file_path):
+        #     frappe.log_error(title="File Missing", message=f"File not found: {file_path}")
 
         file = client.files.upload(
             file=file_path, 
