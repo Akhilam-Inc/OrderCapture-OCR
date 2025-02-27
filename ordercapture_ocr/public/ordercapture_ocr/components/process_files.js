@@ -504,10 +504,13 @@ ordercapture_ocr.process_dialog = {
 
       // Check file extension
       const fileExtension = actual_file_path.split('.').pop().toLowerCase();
-      const method = fileExtension === 'pdf' ? 
-        'ordercapture_ocr.api.get_ocr_details' : 
-        'ordercapture_ocr.api.extract_purchase_order_data';
-
+      if (fileExtension === 'pdf') {
+        method = ocr_model === 'Gemini' ? 
+          'ordercapture_ocr.gemini_ocr.api.extract_structured_data' : 
+          'ordercapture_ocr.api.get_ocr_details';
+      } else {
+        method = 'ordercapture_ocr.api.extract_purchase_order_data';
+      }
       let args = {
         file_path: actual_file_path
       };
