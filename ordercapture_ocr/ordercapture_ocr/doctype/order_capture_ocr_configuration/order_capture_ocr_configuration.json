@@ -7,8 +7,13 @@
  "field_order": [
   "settings_section",
   "source_warehouse_for_sales_order",
+  "ocr_model",
+  "section_break_vsux",
   "openai_api_secret",
-  "gpt_model"
+  "gemini_api_secret",
+  "column_break_vzwo",
+  "openai_model",
+  "gemini_model"
  ],
  "fields": [
   {
@@ -24,22 +29,48 @@
    "options": "Warehouse"
   },
   {
+   "depends_on": "eval:doc.ocr_model == \"OpenAI\"",
    "fieldname": "openai_api_secret",
    "fieldtype": "Password",
    "label": "OpenAI API Secret"
   },
   {
-   "fieldname": "gpt_model",
+   "fieldname": "ocr_model",
+   "fieldtype": "Select",
+   "label": "OCR Model",
+   "options": "Gemini\nOpenAI"
+  },
+  {
+   "fieldname": "section_break_vsux",
+   "fieldtype": "Section Break"
+  },
+  {
+   "depends_on": "eval:doc.ocr_model == \"Gemini\"",
+   "fieldname": "gemini_api_secret",
+   "fieldtype": "Password",
+   "label": "Gemini API Secret"
+  },
+  {
+   "fieldname": "column_break_vzwo",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.ocr_model == \"OpenAI\"",
+   "fieldname": "openai_model",
    "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "GPT Model",
-   "reqd": 1
+   "label": "OpenAI Model"
+  },
+  {
+   "depends_on": "eval:doc.ocr_model == \"Gemini\"",
+   "fieldname": "gemini_model",
+   "fieldtype": "Data",
+   "label": "Gemini Model"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-02-18 10:34:26.918231",
+ "modified": "2025-02-26 21:31:38.361354",
  "modified_by": "Administrator",
  "module": "OrderCapture OCR",
  "name": "Order Capture OCR Configuration",
