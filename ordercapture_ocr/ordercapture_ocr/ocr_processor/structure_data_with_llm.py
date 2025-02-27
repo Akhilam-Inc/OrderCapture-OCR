@@ -5,7 +5,7 @@ import frappe
 def parse_purchase_order_with_llm(text_content):
     ocr_config = frappe.get_single("Order Capture OCR Configuration")
     openai.api_key = ocr_config.get_password("openai_api_secret")
-    openai_model = ocr_config.gpt_model
+    openai_model = ocr_config.openai_model
 
     functions = [
         {
