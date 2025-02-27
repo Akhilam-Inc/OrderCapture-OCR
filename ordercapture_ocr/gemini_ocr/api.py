@@ -55,7 +55,7 @@ def get_complete_file_path(file_path):
 def extract_structured_data(file_path, model: BaseModel = Order):
     # Upload the file to the File API
     try:        
-        file_path = frappe.utils.get_site_path() + file_path
+        file_path = get_complete_file_path(file_path)
         # file_path = "/home/frappeuser/frappe-bench/sites/ocr.akhilaminc.com/public" + file_path
 
         if not os.path.exists(file_path):
