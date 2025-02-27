@@ -48,7 +48,7 @@ def extract_structured_data(file_path: str, model: BaseModel = Order):
     # Upload the file to the File API
     try:
         # file_path = frappe.get_site_path() + file_path
-        file_path = "/home/frappeuser/frappe-bench/sites/ocr.akhilaminc.com" + file_path
+        file_path = "/home/frappeuser/frappe-bench/sites/ocr.akhilaminc.com/public" + file_path
 
         if not os.path.exists(file_path):
             frappe.log_error(title="File Missing", message=f"File not found: {file_path}")
