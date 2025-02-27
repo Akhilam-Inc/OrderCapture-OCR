@@ -776,8 +776,8 @@ ordercapture_ocr.process_dialog = {
         }
       });
       d.set_value('po_number',  processed_data.orderNumber);
-      d.set_value('po_date', processed_data.orderDate);
-      d.set_value('po_expiry_date', processed_data.orderExpiryDate);
+      d.set_value('po_date', frappe.datetime.format_date(processed_data.orderDate, 'dd-mm-yyyy'));
+      d.set_value('po_expiry_date', frappe.datetime.format_date(processed_data.orderExpiryDate, 'dd-mm-yyyy'));
       // Calculate totals from table data
       const items = d.fields_dict.items.grid.data;
       const total_item_qty = items.reduce((sum, item) => sum + (item.qty || 0), 0);
