@@ -502,6 +502,8 @@ ordercapture_ocr.process_dialog = {
       `;
       $('body').append(loader);
 
+      const ocr_model = await frappe.db.get_single_value("Order Capture OCR Configuration", "ocr_model");
+
       // Check file extension
       const fileExtension = actual_file_path.split('.').pop().toLowerCase();
       if (fileExtension === 'pdf') {
