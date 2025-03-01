@@ -811,7 +811,8 @@ ordercapture_ocr.process_dialog = {
     d.events.post_sales_order = function() {
       const items_data = d.fields_dict.items.grid.data;
       const po_number = d.get_value('po_number');
-      const po_date = d.get_value('po_date');
+      const po_date = moment(d.get_value('po_date')).format("YYYY-MM-DD");
+
       const po_expiry_date = d.get_value('po_expiry_date');
 
       if (items_data.length === 0) {
