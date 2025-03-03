@@ -71,6 +71,9 @@ def create_sales_order(response):
 
         # Fetch customer item codes mapping
         customer_item_codes = get_customer_item_code(response)
+        if not customer_item_codes:
+            # print("No customer item codes found")
+            frappe.throw("No customer item codes found")
 
         # Check if the customer exists
         if not frappe.db.exists('Customer', customer_name):
@@ -96,7 +99,7 @@ def create_sales_order(response):
             item_code = item.get('itemCode')
 
             sales_order.append("items", {
-                "item_code": item_code,
+                "item_code": customer_item_codes[item_code],
                 "qty": item.get('qty'),
                 "rate": item.get('rate'),
                 "warehouse": source_warehouse,
@@ -110,7 +113,7 @@ def create_sales_order(response):
 
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Error in create sales order from response")
-        frappe.msgprint("Error in creating sales order")
+        frappe.msgprint(f"Error in creating sales order {e}")
 
 def check_custom_field_exists(fieldname, doctype="Sales Order"):
     meta = frappe.get_meta(doctype)  # Fetch metadata for Sales Order
