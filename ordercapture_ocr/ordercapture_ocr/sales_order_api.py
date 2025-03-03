@@ -96,7 +96,7 @@ def create_sales_order(response):
             item_code = item.get('itemCode')
 
             sales_order.append("items", {
-                "item_code": customer_item_codes[item_code],
+                "item_code": item_code,
                 "qty": item.get('qty'),
                 "rate": item.get('rate'),
                 "warehouse": source_warehouse,
