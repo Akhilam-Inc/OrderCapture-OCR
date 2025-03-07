@@ -80,10 +80,13 @@ def create_sales_order(response):
             print(f"Customer {customer_name} not found")
             frappe.throw("Customer not found")
 
+        defaultCompany = frappe.get_single("Global Defaults").default_company
+
         # Create Sales Order document
         sales_order = frappe.get_doc({
             "doctype": "Sales Order",
             "customer": customer_name,
+            "company": defaultCompany,s
             "delivery_date": frappe.utils.nowdate(),
             "set_warehouse": source_warehouse,
             "po_no": po_number,
@@ -105,7 +108,6 @@ def create_sales_order(response):
                 "warehouse": source_warehouse,
             })
         
-        defaultCompany = frappe.get_single("Global Defaults").default_company
         party_details = get_party_details(party=sales_order.customer,party_type='Customer',posting_date=frappe.utils.today(),company=defaultCompany,doctype='Sales Order')
         sales_order.taxes_and_charges = party_details.get("taxes_and_charges")
         sales_order.set("taxes", party_details.get("taxes"))        
