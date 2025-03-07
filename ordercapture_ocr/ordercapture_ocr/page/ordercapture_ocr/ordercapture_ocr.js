@@ -20,5 +20,4 @@ frappe.pages['ordercapture-ocr'].on_page_load = function(wrapper) {
                 template: '<ocr-dashboard/>'
             });
         });
-    
 }
