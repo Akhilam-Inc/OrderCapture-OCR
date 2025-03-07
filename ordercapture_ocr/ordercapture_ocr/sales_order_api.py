@@ -86,7 +86,7 @@ def create_sales_order(response):
         sales_order = frappe.get_doc({
             "doctype": "Sales Order",
             "customer": customer_name,
-            "company": defaultCompany,s
+            "company": defaultCompany,
             "delivery_date": frappe.utils.nowdate(),
             "set_warehouse": source_warehouse,
             "po_no": po_number,
