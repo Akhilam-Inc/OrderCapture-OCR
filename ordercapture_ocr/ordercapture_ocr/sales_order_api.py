@@ -39,14 +39,15 @@ def get_customer_item_code(response):
     try:
         customer_name = response.get('Customer', {}).get('customerName')
         item_code_mapping = {}
+        no_mapped_item_codes = []
         for item in response.get('orderDetails', []):
             customer_item_code = item.get('itemCode')
             mapped_item_code = frappe.db.get_value('Customer Item Code Mapping',{'customer': customer_name, 'customer_item_code': customer_item_code},'item_code')
-            no_mapped_item_codes = []
             if mapped_item_code:
                 item_code_mapping[customer_item_code] = mapped_item_code
             else:
                 no_mapped_item_codes.append(customer_item_code)
+        
         if no_mapped_item_codes:
             frappe.throw(_("Item codes <b>{0}</b> are not mapped for customer <b>{1}</b>. Please map the item codes in <a href='/app/customer-item-code-mapping'>Customer Item Code Mapping</a>").format(', '.join(no_mapped_item_codes), customer_name))
         return item_code_mapping
