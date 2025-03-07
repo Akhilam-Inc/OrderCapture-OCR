@@ -72,8 +72,6 @@ def create_sales_order(response):
         po_number = response.get('Customer').get('poNumber')
         po_date = response.get('Customer').get('poDate')
 
-        company = frappe.get_single("Global Defaults").default_company
-
         # Fetch customer item codes mapping
         customer_item_codes = get_customer_item_code(response)
 
@@ -106,8 +104,9 @@ def create_sales_order(response):
                 "rate": item.get('rate'),
                 "warehouse": source_warehouse,
             })
-
-        party_details = get_party_details(party=sales_order.customer,party_type='Customer',posting_date=frappe.utils.today(),company=company,doctype='Sales Order')
+        
+        defaultCompany = frappe.get_single("Global Defaults").default_company
+        party_details = get_party_details(party=sales_order.customer,party_type='Customer',posting_date=frappe.utils.today(),company=defaultCompany,doctype='Sales Order')
         sales_order.taxes_and_charges = party_details.get("taxes_and_charges")
         sales_order.set("taxes", party_details.get("taxes"))        
         sales_order.set_missing_values()
