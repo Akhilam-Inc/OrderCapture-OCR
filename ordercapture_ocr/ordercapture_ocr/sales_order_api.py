@@ -1,5 +1,8 @@
 import frappe
 from frappe import _
+from frappe.utils import (getdate,today)
+from erpnext.accounts.party import get_party_details
+import json
 
 # response =  {
 #     "Customer": {
@@ -69,6 +72,7 @@ def create_sales_order(response):
         po_number = response.get('Customer').get('poNumber')
         po_date = response.get('Customer').get('poDate')
 
+        company = frappe.get_single("Global Defaults").default_company
 
         # Fetch customer item codes mapping
         customer_item_codes = get_customer_item_code(response)
@@ -102,6 +106,12 @@ def create_sales_order(response):
                 "rate": item.get('rate'),
                 "warehouse": source_warehouse,
             })
+
+        party_details = get_party_details(party=sales_order.customer,party_type='Customer',posting_date=frappe.utils.today(),company=company,doctype='Sales Order')
+        sales_order.taxes_and_charges = party_details.get("taxes_and_charges")
+        sales_order.set("taxes", party_details.get("taxes"))        
+        sales_order.set_missing_values()
+        sales_order.calculate_taxes_and_totals()
 
         sales_order.insert(ignore_permissions=True)
         frappe.db.commit()
