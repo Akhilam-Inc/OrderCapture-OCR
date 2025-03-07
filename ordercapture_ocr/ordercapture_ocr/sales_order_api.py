@@ -72,6 +72,7 @@ def create_sales_order(response):
         po_number = response.get('Customer').get('poNumber')
         po_date = response.get('Customer').get('poDate')
 
+        company = frappe.get_single("Global Defaults").default_company
 
         # Fetch customer item codes mapping
         customer_item_codes = get_customer_item_code(response)
