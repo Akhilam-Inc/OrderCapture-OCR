@@ -864,6 +864,7 @@ ordercapture_ocr.process_dialog = {
         };
         frappe.call({
           method: 'ordercapture_ocr.ordercapture_ocr.sales_order_api.create_sales_order',
+          freeze: true,
           args: {
             response: sales_order_values
           },
