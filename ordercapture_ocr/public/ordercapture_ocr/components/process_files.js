@@ -793,16 +793,16 @@ ordercapture_ocr.process_dialog = {
       //   return Number((sum + (item.rate * item.qty)).toFixed(2));
       // }, 0);
       const total_net_amount = processed_data.orderDetails.reduce((sum, item) => {
-        return Number((sum + (item.totalAmount)).toFixed(2));
-      }, 0);
+        return Number(sum + (item.totalAmount));
+      }, 0).toFixed(2);
       // Set the total net amount field
       d.set_value('total_net_amount', total_net_amount);
 
       // Calculate total taxes
       const total_taxes = processed_data.orderDetails.reduce((sum, item) => {
         const gst_value = parseFloat(item.gst) || 0;
-        return Number((sum + ((item.rate * item.qty * gst_value) / 100)).toFixed(2));
-      }, 0);
+        return Number((sum + ((item.rate * item.qty * gst_value) / 100)));
+      }, 0).toFixed(2);
 
       // Set the total taxes field
       d.set_value('total_taxes', total_taxes);
@@ -1002,7 +1002,7 @@ function refreshTotalFields(d){
   
   // Calculate total net amount (sum of rates without taxes)
   const total_net_amount = items.reduce((sum, item) => {
-    return sum + ((Number(item.rate) || 0) * (Number(item.qty) || 0));
+    return (sum + ((Number(item.rate) || 0) * (Number(item.qty) || 0)));
   }, 0).toFixed(2);
   
   // Calculate total taxes
