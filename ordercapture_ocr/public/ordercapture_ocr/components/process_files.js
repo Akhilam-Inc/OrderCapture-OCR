@@ -821,8 +821,7 @@ ordercapture_ocr.process_dialog = {
       const dateFormat = vendorIsFlipkart ? "DD-MM-YY" : undefined;
 
       const po_date = moment(d.get_value('po_date'), dateFormat).format("YYYY-MM-DD");
-      const po_expiry_date = moment(d.get_value('po_expiry_date'), dateFormat).format("YYYY-MM-DD");
-      
+      const po_expiry_date = moment(d.get_value('po_expiry_date'), dateFormat).format("YYYY-MM-DD");      
 
       if (items_data.length === 0) {
         frappe.show_alert({
