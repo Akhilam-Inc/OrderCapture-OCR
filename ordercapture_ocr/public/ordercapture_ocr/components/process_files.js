@@ -812,9 +812,9 @@ ordercapture_ocr.process_dialog = {
     d.events.post_sales_order = function() {
       const items_data = d.fields_dict.items.grid.data;
       const po_number = d.get_value('po_number');
-      const po_date = moment(d.get_value('po_date')).format("YYYY-MM-DD");
+      const po_date = moment(d.get_value('po_date'), "DD-MM-YY").format("YYYY-MM-DD");
 
-      const po_expiry_date = moment(d.get_value('po_expiry_date')).format("YYYY-MM-DD");
+      const po_expiry_date = moment(d.get_value('po_expiry_date'), "DD-MM-YY").format("YYYY-MM-DD");
 
       if (items_data.length === 0) {
         frappe.show_alert({
