@@ -814,7 +814,7 @@ ordercapture_ocr.process_dialog = {
       const po_number = d.get_value('po_number');
       const po_date = moment(d.get_value('po_date')).format("YYYY-MM-DD");
 
-      const po_expiry_date = d.get_value('po_expiry_date');
+      const po_expiry_date = moment(d.get_value('po_expiry_date')).format("YYYY-MM-DD");
 
       if (items_data.length === 0) {
         frappe.show_alert({

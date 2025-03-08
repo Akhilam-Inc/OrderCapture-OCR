@@ -95,7 +95,7 @@ def create_sales_order(response):
         })
 
         if check_custom_field_exists("custom_po_expiry_date"):
-            sales_order.custom_po_expiry_date = response.get('Customer').get('customPoExpiryDate')
+            sales_order.custom_po_expiry_date = response.get('Customer').get('poExpiryDate')
 
         # Add items to the Sales Order
         for item in response.get('orderDetails', []):
