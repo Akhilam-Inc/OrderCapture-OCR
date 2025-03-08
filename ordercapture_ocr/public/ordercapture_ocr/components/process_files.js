@@ -1003,7 +1003,7 @@ function refreshTotalFields(d){
   // Calculate total net amount (sum of rates without taxes)
   const total_net_amount = items.reduce((sum, item) => {
     return (sum + ((Number(item.rate) || 0) * (Number(item.qty) || 0)));
-  }, 0);
+  }, 0).toFixed(2);
   
   // Calculate total taxes
   const total_taxes = items.reduce((sum, item) => {
