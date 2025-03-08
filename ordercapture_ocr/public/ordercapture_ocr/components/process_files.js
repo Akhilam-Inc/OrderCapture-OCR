@@ -546,6 +546,7 @@ ordercapture_ocr.process_dialog = {
           d.$wrapper.css('filter', '');
           $('.ocr-loader').remove();
           if (r.message && r.message.orderDetails) {
+            console.log(r.message)
             frappe.call({
               method: 'frappe.client.set_value',
               args: {
