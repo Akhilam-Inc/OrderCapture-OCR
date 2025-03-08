@@ -810,6 +810,11 @@ ordercapture_ocr.process_dialog = {
     };
 
     d.events.post_sales_order = function() {
+      if (d.is_submitting) return;
+      d.is_submitting = true;
+
+      d.set_df_property('post_sales_order', 'read_only', true);
+
       const items_data = d.fields_dict.items.grid.data;
       const po_number = d.get_value('po_number');
       const vendorIsFlipkart = d.get_value('vendor_type') === 'FlipKart';
@@ -836,6 +841,8 @@ ordercapture_ocr.process_dialog = {
       }).then(existing_orders => {
         if (existing_orders.length > 0) {
           frappe.msgprint(__('Sales Order already exists with PO Number: {0}', [po_number]));
+          d.is_submitting = false;
+          d.set_df_property('post_sales_order', 'read_only', false);
           return;
         }
 
@@ -905,8 +912,16 @@ ordercapture_ocr.process_dialog = {
                 }
               });
             }
+          },
+          always: () => {
+            // Reset submission state whether request succeeds or fails
+            d.is_submitting = false;
           }
         });
+      }).catch(() => {
+        // Reset submission state if promise fails
+        d.is_submitting = false;
+        d.set_df_property('post_sales_order', 'read_only', false);
       })
      
     };
