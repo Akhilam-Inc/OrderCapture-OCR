@@ -22,7 +22,7 @@ class items(BaseModel):
     rate: float = Field(description="The rate of the item")
     gst: float = Field(description="The gst of the item")
     landing_rate: float = Field(description="The landing rate or unit based cost of the item")
-    totalAmount: float = Field(description="The total amount of the item")
+    totalAmount: float = Field(description="The total amount of the item, the amount could be in float or integer")
 
 class Totals(BaseModel):
     totalItemQty: Optional[float] = Field(description="The total item quantity")
