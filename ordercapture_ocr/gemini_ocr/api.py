@@ -16,7 +16,7 @@ client = genai.Client(api_key=api_key)
 model_id = ocr_config.gemini_model #"gemini-2.0-flash"  or "gemini-2.0-flash-lite-preview-02-05"  , "gemini-2.0-pro-exp-02-05"
 
 class items(BaseModel):
-    itemCode: str = Field(description="The item code")
+    itemCode: str = Field(description="The item code, Extract the complete item code exactly as it appears, even if split across lines. This is a critical identifier.")
     itemName: str = Field(description="The item name")
     qty: float = Field(description="The quantity of the item")
     rate: float = Field(description="The rate of the item")
