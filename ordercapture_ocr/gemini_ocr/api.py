@@ -67,7 +67,7 @@ def extract_structured_data(file_path, model: BaseModel = Order):
         # if file is None:
     
         # Generate a structured response using the Gemini API
-        prompt = f"You are an assistant that extracts purchase order details. We are supplier with name GO DESI MANDI PVT LTD. In purchase Order our details will be titled as vendor details so make sure not to extract address from that section."
+        prompt = f"You are an assistant that extracts purchase order details. We are supplier with name GO DESI MANDI PVT LTD. In purchase Order our details will be titled as vendor details so make sure not to extract address from that section. IMPORTANT: Extract all data COMPLETELY and ACCURATELY. Pay special attention to information that may span across multiple lines. Capture full text of descriptions, addresses, and notes. Ensure you collect all items and details exactly as they appear in the document, even if formatted unusually or split across different sections."
         response = client.models.generate_content(
             model=model_id, 
             contents=[prompt, file], 
