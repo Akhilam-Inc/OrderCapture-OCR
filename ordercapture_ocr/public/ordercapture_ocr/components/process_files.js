@@ -925,17 +925,129 @@ ordercapture_ocr.process_dialog = {
      
     };
 
+    // d.events.fetch_price_list_rate = function() {
+    //   const customer = d.get_value('customer');
+    //   const items = d.fields_dict.items.grid.data;
+    
+    //   if(items.length == 0) {
+    //     frappe.show_alert({
+    //       message: 'No items, process files first...',
+    //       indicator: 'red'
+    //     });
+    //     return;
+    //   }
+    
+    //   // Step 1: Get customer's price list
+    //   frappe.call({
+    //     method: 'erpnext.accounts.party.get_party_details',
+    //     args: {
+    //       party: customer,
+    //       party_type: 'Customer'
+    //     },
+    //     callback: (r) => {
+    //       if(r.message) {
+    //         // const price_list = r.message.selling_price_list || 'Standard Selling';
+    //         const price_list = r.message.selling_price_list || 'Standard Selling';
+    //         const price_list_currency = r.message.price_list_currency || "INR";
+            
+    //         // Step 2: Get price list rates for all items
+    //         items.forEach((item, idx) => {
+    //           frappe.call({
+    //             method: 'erpnext.stock.get_item_details.get_item_details',
+    //             args: {
+    //               args: {
+    //                 item_code: item.itemCode,
+    //                 price_list: price_list,
+    //                 customer: customer,
+    //                 company: frappe.defaults.get_default('company'),
+    //                 doctype: 'Sales Order',
+    //                 price_list_currency: price_list_currency,
+    //                 conversion_rate: 1,
+    //                 currency: price_list_currency,
+    //                 // plc_conversion_rate: 1
+    //               }
+    //             },
+    //             callback: (result) => {
+    //               if(result.message) {
+                    
+    //                 // Update rate with price list rate
+    //                 item.plRate = result.message.price_list_rate;
+                    
+    //                 // Highlight if rates are different from landing rate
+    //                 if(item.rate !== item.plRate ) {
+    //                   d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
+    //                 }else{
+    //                   d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-white');
+
+    //                 }
+                    
+    //                 d.fields_dict.items.grid.refresh();
+    //               }
+    //             }, 
+    //             error: (e) => {
+    //               if (e  == undefined) {
+    //                 frappe.call({
+    //                   method: 'erpnext.stock.get_item_details.get_item_details',
+    //                   args: {
+    //                     args: {
+    //                       item_code: item.itemName,
+    //                       price_list: price_list,
+    //                       customer: customer,
+    //                       company: frappe.defaults.get_default('company'),
+    //                       doctype: 'Sales Order',
+    //                       price_list_currency: price_list_currency,
+    //                       conversion_rate: 1,
+    //                       currency: price_list_currency,
+    //                       // plc_conversion_rate: 1
+    //                     }
+    //                   },
+    //                   callback: (result) => {
+    //                     if(result.message) {
+                          
+    //                       // Update rate with price list rate
+    //                       item.plRate = result.message.price_list_rate;
+                          
+    //                       // Highlight if rates are different from landing rate
+    //                       if(item.rate !== item.plRate ) {
+    //                         d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
+    //                       }else{
+    //                         d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-white');
+      
+    //                       }
+                          
+    //                       d.fields_dict.items.grid.refresh();
+    //                     }
+    //                   }
+                      
+    //                 });
+    //               }
+    //             }
+    //           });
+    //         });
+    //       }
+    //     }
+    //   });
+    // };
+
     d.events.fetch_price_list_rate = function() {
       const customer = d.get_value('customer');
       const items = d.fields_dict.items.grid.data;
     
-      if(items.length == 0) {
+      if(items.length === 0) {
         frappe.show_alert({
           message: 'No items, process files first...',
           indicator: 'red'
         });
         return;
       }
+    
+      // Show loading indicator
+      frappe.show_alert({
+        message: 'Fetching price list rates...',
+        indicator: 'blue'
+      });
+
+      
     
       // Step 1: Get customer's price list
       frappe.call({
@@ -946,49 +1058,109 @@ ordercapture_ocr.process_dialog = {
         },
         callback: (r) => {
           if(r.message) {
-            // const price_list = r.message.selling_price_list || 'Standard Selling';
             const price_list = r.message.selling_price_list || 'Standard Selling';
             const price_list_currency = r.message.price_list_currency || "INR";
+            const company = frappe.defaults.get_default('company');
             
-            // Step 2: Get price list rates for all items
+            // Process each item
+            let completedItems = 0;
+            
             items.forEach((item, idx) => {
-              frappe.call({
-                method: 'erpnext.stock.get_item_details.get_item_details',
-                args: {
-                  args: {
-                    item_code: item.itemCode,
-                    price_list: price_list,
-                    customer: customer,
-                    company: frappe.defaults.get_default('company'),
-                    doctype: 'Sales Order',
-                    price_list_currency: price_list_currency,
-                    conversion_rate: 1,
-                    currency: price_list_currency,
-                    // plc_conversion_rate: 1
-                  }
-                },
-                callback: (result) => {
-                  if(result.message) {
-                    // Update rate with price list rate
-                    item.plRate = result.message.price_list_rate;
-                    
-                    // Highlight if rates are different from landing rate
-                    if(item.rate !== item.plRate ) {
-                      d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
-                    }else{
-                      d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-white');
-
+              // Function to try with a specific item code
+              function tryWithItemCode(code_to_try) {
+                return new Promise((resolve) => {
+                  frappe.call({
+                    method: 'ordercapture_ocr.api.get_item_details_with_fallback',
+                    args: {
+                      args: {
+                        item_code: code_to_try,
+                        price_list: price_list,
+                        customer: customer,
+                        company: company,
+                        doctype: 'Sales Order',
+                        price_list_currency: price_list_currency,
+                        conversion_rate: 1,
+                        currency: price_list_currency,
+                      }
+                    },
+                    freeze: true,
+                    show_alert: false,
+                    hide_error_dialog: true,
+                    callback: (result) => {
+                      if(result.message && result.message.price_list_rate) {
+                        resolve({
+                          success: true,
+                          rate: result.message.price_list_rate
+                        });
+                      } else {
+                        resolve({
+                          success: false
+                        });
+                      }
+                    },
+                    error: (err) => {
+                      // This will catch 404 errors when item is not found
+                      console.log(`Error fetching details for ${code_to_try}:`, err);
+                      resolve({
+                        success: false,
+                        error: err
+                      });
                     }
-                    
-                    d.fields_dict.items.grid.refresh();
+                  });
+                });
+              }
+              
+              // First try with itemCode
+              (async function() {
+                let result;
+                
+                // Try with itemCode first if it exists
+                if (item.itemCode) {
+                  result = await tryWithItemCode(item.itemCode);
+                }
+                
+                // If itemCode failed or doesn't exist, try with itemName
+                if ((!result || !result.success) && item.itemName && 
+                    (!item.itemCode || item.itemCode !== item.itemName)) {
+                  frappe.show_alert(`Item not found with code ${item.itemCode}, trying with name ${item.itemName}`);
+                  result = await tryWithItemCode(item.itemName);
+                }
+                
+                // Update the item with the result
+                if (result && result.success) {
+                  item.plRate = result.rate;
+                  
+                  // Highlight if rates are different
+                  if(item.rate !== item.plRate) {
+                    d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
+                  } else {
+                    d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-white');
                   }
                 }
-              });
+                
+                // Count completed items
+                completedItems++;
+                
+                // If all items are processed, refresh the grid once
+                if (completedItems === items.length) {
+                  d.fields_dict.items.grid.refresh();
+                  frappe.show_alert({
+                    message: 'Price list rates updated',
+                    indicator: 'green'
+                  });
+                }
+              })();
             });
+          }
+          else{
+            console.log("error",r.message);
+            frappe.msgprint("error",r.message);
           }
         }
       });
     };
+    
+    
     
     // Add this near the start of the file
     frappe.dom.set_style(`

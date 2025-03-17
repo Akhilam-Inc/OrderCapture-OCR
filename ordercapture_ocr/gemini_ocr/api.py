@@ -36,8 +36,8 @@ class CustomerDetails(BaseModel):
 class Order(BaseModel):
     """Extract the invoice number, date and all list items with description, quantity and gross worth and the total gross worth."""
     orderNumber: str = Field(description="The po number e.g. 1234567890")
-    orderDate: str = Field(description="The date of the order e.g. 2024-01-01")
-    orderExpiryDate: str = Field(description="The expiry date of the order e.g. 2024-01-01")
+    orderDate: str = Field(description="The date of the order e.g. 2024-01-01, please change the date format to yyyy-mm-dd")
+    orderExpiryDate: str = Field(description="The expiry date of the order e.g. 2024-01-01, please change the date format to yyyy-mm-dd")
     Customer: Optional[CustomerDetails] = Field(description="The customer details")
     orderDetails: list[items] = Field(description="The order details")
     totals: Optional[Totals] = Field(description="The totals")

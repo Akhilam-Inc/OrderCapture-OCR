@@ -7,6 +7,11 @@ import io
 import pandas as pd
 from frappe.utils import cstr
 from re import sub
+import json
+
+
+from erpnext.stock.get_item_details import get_item_details as original_get_item_details
+
 
 @frappe.whitelist()
 def extract_purchase_order_data(file_path: str, vendor_type: str) -> dict:
@@ -504,4 +509,55 @@ def extract_excel_data(file_path):
         frappe.log_error(f"Excel Extraction Error: {str(e)}")
         return None
 
+
+
+@frappe.whitelist()
+def get_item_details_with_fallback(args):
+    """
+    Custom wrapper for get_item_details that handles item not found errors gracefully.
+    First tries with item_code, then falls back to using the same value as item name if not found.
     
+    Args:
+        args: JSON string or dict containing the arguments for get_item_details
+    
+    Returns:
+        The result from get_item_details or empty dict if item not found
+    """
+    if isinstance(args, str):
+        args = json.loads(args)
+    
+    item_code = args.get("item_code")
+    if not item_code:
+        return {"price_list_rate": 0}
+    
+    # First check if the item exists by item_code
+    item_exists = frappe.db.exists("Item", item_code)
+    
+    if item_exists:
+        # Item exists, safe to call original function
+        try:
+            return original_get_item_details(args)
+        except Exception as e:
+            frappe.log_error(f"Error getting item details for {item_code}: {str(e)}", "safe_get_item_details")
+            return {"price_list_rate": 0}
+    else:
+        # Item doesn't exist by code, try to find by name
+        items = frappe.get_all(
+            "Item", 
+            filters={"item_name": item_code},
+            fields=["name"]
+        )
+        
+        if items and len(items) > 0:
+            # Found an item with matching name, use its item code
+            args["item_code"] = items[0].name
+            try:
+                return original_get_item_details(args)
+            except Exception as e:
+                frappe.log_error(f"Error getting item details by name for {item_code}: {str(e)}", "safe_get_item_details")
+                return {"price_list_rate": 0}
+        else:
+            # No item found by code or name
+            frappe.log_error(f"Item not found by code or name: {item_code}", "safe_get_item_details")
+            return {"price_list_rate": 0}
+   
