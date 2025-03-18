@@ -20,18 +20,22 @@
   {
    "fieldname": "customer_item_code",
    "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Customer Item Code"
   },
   {
    "fieldname": "customer",
    "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Customer",
    "options": "Customer"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-01-02 09:28:22.635236",
+ "modified": "2025-03-18 07:55:26.194875",
  "modified_by": "Administrator",
  "module": "OrderCapture OCR",
  "name": "Customer Item Code Mapping",

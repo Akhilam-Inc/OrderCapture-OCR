@@ -946,49 +946,96 @@ ordercapture_ocr.process_dialog = {
         },
         callback: (r) => {
           if(r.message) {
-            // const price_list = r.message.selling_price_list || 'Standard Selling';
             const price_list = r.message.selling_price_list || 'Standard Selling';
             const price_list_currency = r.message.price_list_currency || "INR";
             
             // Step 2: Get price list rates for all items
+            let hasErrors = false;
+            const itemsWithoutMapping = [];
+            
             items.forEach((item, idx) => {
+              // First check if there's a mapping in Customer Item Code Mapping
               frappe.call({
-                method: 'erpnext.stock.get_item_details.get_item_details',
+                method: 'frappe.client.get_list',
                 args: {
-                  args: {
-                    item_code: item.itemCode,
-                    price_list: price_list,
-                    customer: customer,
-                    company: frappe.defaults.get_default('company'),
-                    doctype: 'Sales Order',
-                    price_list_currency: price_list_currency,
-                    conversion_rate: 1,
-                    currency: price_list_currency,
-                    // plc_conversion_rate: 1
-                  }
+                  doctype: 'Customer Item Code Mapping',
+                  filters: [
+                    ['customer', '=', customer],
+                    [
+                      'item_code', 'in', [item.itemCode, item.itemName]
+                    ]
+                  ],
+                  fields: ['customer_item_code', 'item_code']
                 },
-                callback: (result) => {
-                  if(result.message) {
-                    // Update rate with price list rate
-                    item.plRate = result.message.price_list_rate;
+                callback: (mapping_result) => {
+                  // If mapping doesn't exist, add to error list
+                  if(!mapping_result.message || mapping_result.message.length === 0 || !mapping_result.message[0].customer_item_code) {
+                    hasErrors = true;
+                    itemsWithoutMapping.push(item.itemCode);
                     
-                    // Highlight if rates are different from landing rate
-                    if(item.rate !== item.plRate ) {
-                      d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
-                    }else{
-                      d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-white');
-
+                    // Highlight the row with error
+                    d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
+                    return;
+                  }
+                  
+                  // Mapping exists, use the customer's item code
+                  const item_code_to_use = mapping_result.message[0].customer_item_code;
+                  
+                  // Now get item details with the customer's item code
+                  frappe.call({
+                    method: 'erpnext.stock.get_item_details.get_item_details',
+                    args: {
+                      args: {
+                        item_code: item_code_to_use,
+                        price_list: price_list,
+                        customer: customer,
+                        company: frappe.defaults.get_default('company'),
+                        doctype: 'Sales Order',
+                        price_list_currency: price_list_currency,
+                        conversion_rate: 1,
+                        currency: price_list_currency,
+                      }
+                    },
+                    callback: (result) => {
+                      if(result.message) {
+                        // Update rate with price list rate
+                        item.plRate = result.message.price_list_rate;
+                        
+                        // Highlight if rates are different from landing rate
+                        if(item.rate !== item.plRate) {
+                          d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
+                        } else {
+                          d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-white');
+                        }
+                        
+                        d.fields_dict.items.grid.refresh();
+                      }
                     }
-                    
-                    d.fields_dict.items.grid.refresh();
+                  });
+                },
+                always: () => {
+                  // Check if this is the last item and show error if needed
+                  if (idx === items.length - 1 && hasErrors) {
+                    setTimeout(() => {
+                      frappe.throw(
+                        __('Customer Item Code Mapping not found for the following items: {0}', 
+                        [itemsWithoutMapping.join(', ')])
+                      );
+                    }, 1000); // Small delay to ensure all API calls are processed
                   }
                 }
               });
+            });
+          } else {
+            frappe.show_alert({
+              message: 'Customer not found',
+              indicator: 'red'
             });
           }
         }
       });
     };
+    
     
     // Add this near the start of the file
     frappe.dom.set_style(`
