@@ -72,7 +72,6 @@ def create_sales_order(response):
         po_number = response.get('Customer').get('poNumber')
         po_date = response.get('Customer').get('poDate')
 
-
         # Fetch customer item codes mapping
         customer_item_codes = get_customer_item_code(response)
 
@@ -81,10 +80,13 @@ def create_sales_order(response):
             print(f"Customer {customer_name} not found")
             frappe.throw("Customer not found")
 
+        defaultCompany = frappe.get_single("Global Defaults").default_company
+
         # Create Sales Order document
         sales_order = frappe.get_doc({
             "doctype": "Sales Order",
             "customer": customer_name,
+            "company": defaultCompany,
             "delivery_date": frappe.utils.nowdate(),
             "set_warehouse": source_warehouse,
             "po_no": po_number,
@@ -93,7 +95,7 @@ def create_sales_order(response):
         })
 
         if check_custom_field_exists("custom_po_expiry_date"):
-            sales_order.custom_po_expiry_date = response.get('Customer').get('customPoExpiryDate')
+            sales_order.custom_po_expiry_date = response.get('Customer').get('poExpiryDate')
 
         # Add items to the Sales Order
         for item in response.get('orderDetails', []):
@@ -105,8 +107,8 @@ def create_sales_order(response):
                 "rate": item.get('rate'),
                 "warehouse": source_warehouse,
             })
-
-        party_details = get_party_details(party=sales_order.customer,party_type='Customer',posting_date=frappe.utils.today(),company=company,doctype='Sales Order')
+        
+        party_details = get_party_details(party=sales_order.customer,party_type='Customer',posting_date=frappe.utils.today(),company=defaultCompany,doctype='Sales Order')
         sales_order.taxes_and_charges = party_details.get("taxes_and_charges")
         sales_order.set("taxes", party_details.get("taxes"))        
         sales_order.set_missing_values()

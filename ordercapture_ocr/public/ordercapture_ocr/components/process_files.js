@@ -546,6 +546,7 @@ ordercapture_ocr.process_dialog = {
           d.$wrapper.css('filter', '');
           $('.ocr-loader').remove();
           if (r.message && r.message.orderDetails) {
+            console.log(r.message)
             frappe.call({
               method: 'frappe.client.set_value',
               args: {
@@ -792,16 +793,16 @@ ordercapture_ocr.process_dialog = {
       //   return Number((sum + (item.rate * item.qty)).toFixed(2));
       // }, 0);
       const total_net_amount = processed_data.orderDetails.reduce((sum, item) => {
-        return Number((sum + (item.totalAmount)).toFixed(2));
-      }, 0);
+        return Number(sum + (item.totalAmount));
+      }, 0).toFixed(2);
       // Set the total net amount field
       d.set_value('total_net_amount', total_net_amount);
 
       // Calculate total taxes
       const total_taxes = processed_data.orderDetails.reduce((sum, item) => {
         const gst_value = parseFloat(item.gst) || 0;
-        return Number((sum + ((item.rate * item.qty * gst_value) / 100)).toFixed(2));
-      }, 0);
+        return Number((sum + ((item.rate * item.qty * gst_value) / 100)));
+      }, 0).toFixed(2);
 
       // Set the total taxes field
       d.set_value('total_taxes', total_taxes);
@@ -809,11 +810,18 @@ ordercapture_ocr.process_dialog = {
     };
 
     d.events.post_sales_order = function() {
+      if (d.is_submitting) return;
+      d.is_submitting = true;
+
+      d.set_df_property('post_sales_order', 'read_only', true);
+
       const items_data = d.fields_dict.items.grid.data;
       const po_number = d.get_value('po_number');
-      const po_date = moment(d.get_value('po_date')).format("YYYY-MM-DD");
+      const vendorIsFlipkart = d.get_value('vendor_type') === 'FlipKart';
+      const dateFormat = vendorIsFlipkart ? "DD-MM-YY" : undefined;
 
-      const po_expiry_date = d.get_value('po_expiry_date');
+      const po_date = moment(d.get_value('po_date'), dateFormat).format("YYYY-MM-DD");
+      const po_expiry_date = moment(d.get_value('po_expiry_date'), dateFormat).format("YYYY-MM-DD");      
 
       if (items_data.length === 0) {
         frappe.show_alert({
@@ -832,6 +840,8 @@ ordercapture_ocr.process_dialog = {
       }).then(existing_orders => {
         if (existing_orders.length > 0) {
           frappe.msgprint(__('Sales Order already exists with PO Number: {0}', [po_number]));
+          d.is_submitting = false;
+          d.set_df_property('post_sales_order', 'read_only', false);
           return;
         }
 
@@ -860,6 +870,7 @@ ordercapture_ocr.process_dialog = {
         };
         frappe.call({
           method: 'ordercapture_ocr.ordercapture_ocr.sales_order_api.create_sales_order',
+          freeze: true,
           args: {
             response: sales_order_values
           },
@@ -900,8 +911,16 @@ ordercapture_ocr.process_dialog = {
                 }
               });
             }
+          },
+          always: () => {
+            // Reset submission state whether request succeeds or fails
+            d.is_submitting = false;
           }
         });
+      }).catch(() => {
+        // Reset submission state if promise fails
+        d.is_submitting = false;
+        d.set_df_property('post_sales_order', 'read_only', false);
       })
      
     };
@@ -927,49 +946,96 @@ ordercapture_ocr.process_dialog = {
         },
         callback: (r) => {
           if(r.message) {
-            // const price_list = r.message.selling_price_list || 'Standard Selling';
             const price_list = r.message.selling_price_list || 'Standard Selling';
             const price_list_currency = r.message.price_list_currency || "INR";
             
             // Step 2: Get price list rates for all items
+            let hasErrors = false;
+            const itemsWithoutMapping = [];
+            
             items.forEach((item, idx) => {
+              // First check if there's a mapping in Customer Item Code Mapping
               frappe.call({
-                method: 'erpnext.stock.get_item_details.get_item_details',
+                method: 'frappe.client.get_list',
                 args: {
-                  args: {
-                    item_code: item.itemCode,
-                    price_list: price_list,
-                    customer: customer,
-                    company: frappe.defaults.get_default('company'),
-                    doctype: 'Sales Order',
-                    price_list_currency: price_list_currency,
-                    conversion_rate: 1,
-                    currency: price_list_currency,
-                    // plc_conversion_rate: 1
-                  }
+                  doctype: 'Customer Item Code Mapping',
+                  filters: [
+                    ['customer', '=', customer],
+                    [
+                      'item_code', 'in', [item.itemCode, item.itemName]
+                    ]
+                  ],
+                  fields: ['customer_item_code', 'item_code']
                 },
-                callback: (result) => {
-                  if(result.message) {
-                    // Update rate with price list rate
-                    item.plRate = result.message.price_list_rate;
+                callback: (mapping_result) => {
+                  // If mapping doesn't exist, add to error list
+                  if(!mapping_result.message || mapping_result.message.length === 0 || !mapping_result.message[0].customer_item_code) {
+                    hasErrors = true;
+                    itemsWithoutMapping.push(item.itemCode);
                     
-                    // Highlight if rates are different from landing rate
-                    if(item.rate !== item.plRate ) {
-                      d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
-                    }else{
-                      d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-white');
-
+                    // Highlight the row with error
+                    d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
+                    return;
+                  }
+                  
+                  // Mapping exists, use the customer's item code
+                  const item_code_to_use = mapping_result.message[0].customer_item_code;
+                  
+                  // Now get item details with the customer's item code
+                  frappe.call({
+                    method: 'erpnext.stock.get_item_details.get_item_details',
+                    args: {
+                      args: {
+                        item_code: item_code_to_use,
+                        price_list: price_list,
+                        customer: customer,
+                        company: frappe.defaults.get_default('company'),
+                        doctype: 'Sales Order',
+                        price_list_currency: price_list_currency,
+                        conversion_rate: 1,
+                        currency: price_list_currency,
+                      }
+                    },
+                    callback: (result) => {
+                      if(result.message) {
+                        // Update rate with price list rate
+                        item.plRate = result.message.price_list_rate;
+                        
+                        // Highlight if rates are different from landing rate
+                        if(item.rate !== item.plRate) {
+                          d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
+                        } else {
+                          d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-white');
+                        }
+                        
+                        d.fields_dict.items.grid.refresh();
+                      }
                     }
-                    
-                    d.fields_dict.items.grid.refresh();
+                  });
+                },
+                always: () => {
+                  // Check if this is the last item and show error if needed
+                  if (idx === items.length - 1 && hasErrors) {
+                    setTimeout(() => {
+                      frappe.throw(
+                        __('Customer Item Code Mapping not found for the following items: {0}', 
+                        [itemsWithoutMapping.join(', ')])
+                      );
+                    }, 1000); // Small delay to ensure all API calls are processed
                   }
                 }
               });
+            });
+          } else {
+            frappe.show_alert({
+              message: 'Customer not found',
+              indicator: 'red'
             });
           }
         }
       });
     };
+    
     
     // Add this near the start of the file
     frappe.dom.set_style(`
@@ -1001,7 +1067,7 @@ function refreshTotalFields(d){
   
   // Calculate total net amount (sum of rates without taxes)
   const total_net_amount = items.reduce((sum, item) => {
-    return sum + ((Number(item.rate) || 0) * (Number(item.qty) || 0));
+    return (sum + ((Number(item.rate) || 0) * (Number(item.qty) || 0)));
   }, 0).toFixed(2);
   
   // Calculate total taxes

@@ -40,6 +40,8 @@ def extract_purchase_order_data(file_path: str, vendor_type: str) -> dict:
         
         return {
             'orderNumber': order_details.get('po_number', ''),
+            'orderDate': order_details.get('po_date', ''),
+            'orderExpiryDate': order_details.get('po_expiry', ''),
             'Customer':{
                 'customerAddress': order_details.get('customer', {}).get('customer_address', ''),
                 'customerName': order_details.get('customer', {}).get('customer_name', ''),
@@ -56,6 +58,8 @@ def _process_bb_order(df: pd.DataFrame) -> dict:
     """Process BB vendor purchase order"""
     po_number = df.iloc[10, 0].split(":")[1].strip() if "PO Number" in str(df.iloc[10, 0]) else ""
     po_date = df.iloc[10, 3].split(":")[1].strip() if "PO date" in str(df.iloc[10, 3]) else ""
+    po_expiry_date = df.iloc[10, 7].split(":")[1].strip() if "PO Expiry date" in str(df.iloc[10, 7]) else ""
+
 
     customer_address = df.iloc[5, 7]
     customer_address1 = df.iloc[6, 7]
@@ -70,6 +74,7 @@ def _process_bb_order(df: pd.DataFrame) -> dict:
     return {
         'po_number': po_number,
         'po_date': po_date,
+        'po_expiry': po_expiry_date,
         'customer': {
             "customer_address": str(f"{customer_address} {customer_address1}") or "",
             "customer_name": str(customer_name) or "",
@@ -80,7 +85,8 @@ def _process_bb_order(df: pd.DataFrame) -> dict:
 def _process_flipkart_order(df: pd.DataFrame) -> dict:
     """Process FlipKart vendor purchase order"""
     po_number = df.iloc[0, 1]
-    po_date = df.iloc[0, 11]
+    po_date = df.iloc[0, 24]
+    po_expiry = df.iloc[0, 19]
 
     customer_address = df.iloc[3, 2]
     customer_name = df.iloc[1, 1]
@@ -95,6 +101,7 @@ def _process_flipkart_order(df: pd.DataFrame) -> dict:
     return {
         'po_number': po_number,
         'po_date': po_date,
+        'po_expiry': po_expiry,
         'customer': {
             "customer_address": str(customer_address) or "",
             "customer_name": str(customer_name) or "",

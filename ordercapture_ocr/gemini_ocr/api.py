@@ -16,13 +16,13 @@ client = genai.Client(api_key=api_key)
 model_id = ocr_config.gemini_model #"gemini-2.0-flash"  or "gemini-2.0-flash-lite-preview-02-05"  , "gemini-2.0-pro-exp-02-05"
 
 class items(BaseModel):
-    itemCode: str = Field(description="The item code")
+    itemCode: str = Field(description="The item code, Extract the complete item code exactly as it appears, even if split across lines, also remove space if included. This is a critical identifier.")
     itemName: str = Field(description="The item name")
     qty: float = Field(description="The quantity of the item")
     rate: float = Field(description="The rate of the item")
     gst: float = Field(description="The gst of the item")
     landing_rate: float = Field(description="The landing rate or unit based cost of the item")
-    totalAmount: float = Field(description="The total amount of the item")
+    totalAmount: float = Field(description="The total amount of the item, the amount could be in float or integer")
 
 class Totals(BaseModel):
     totalItemQty: Optional[float] = Field(description="The total item quantity")
@@ -36,8 +36,8 @@ class CustomerDetails(BaseModel):
 class Order(BaseModel):
     """Extract the invoice number, date and all list items with description, quantity and gross worth and the total gross worth."""
     orderNumber: str = Field(description="The po number e.g. 1234567890")
-    orderDate: str = Field(description="The date of the order e.g. 2024-01-01")
-    orderExpiryDate: str = Field(description="The expiry date of the order e.g. 2024-01-01")
+    orderDate: str = Field(description="The date of the order e.g. 2024-01-01, please change the date format to yyyy-mm-dd")
+    orderExpiryDate: str = Field(description="The expiry date of the order e.g. 2024-01-01, please change the date format to yyyy-mm-dd")
     Customer: Optional[CustomerDetails] = Field(description="The customer details")
     orderDetails: list[items] = Field(description="The order details")
     totals: Optional[Totals] = Field(description="The totals")
@@ -67,7 +67,7 @@ def extract_structured_data(file_path, model: BaseModel = Order):
         # if file is None:
     
         # Generate a structured response using the Gemini API
-        prompt = f"You are an assistant that extracts purchase order details. We are supplier with name GO DESI MANDI PVT LTD. In purchase Order our details will be titled as vendor details so make sure not to extract address from that section."
+        prompt = f"You are an assistant that extracts purchase order details. We are supplier with name GO DESI MANDI PVT LTD. In purchase Order our details will be titled as vendor details so make sure not to extract address from that section. IMPORTANT: Extract all data COMPLETELY and ACCURATELY. Pay special attention to information that may span across multiple lines. Capture full text of descriptions, addresses, and notes. Ensure you collect all items and details exactly as they appear in the document, even if formatted unusually or split across different sections."
         response = client.models.generate_content(
             model=model_id, 
             contents=[prompt, file], 
