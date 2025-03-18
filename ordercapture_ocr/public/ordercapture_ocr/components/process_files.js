@@ -929,21 +929,13 @@ ordercapture_ocr.process_dialog = {
       const customer = d.get_value('customer');
       const items = d.fields_dict.items.grid.data;
     
-      if(items.length === 0) {
+      if(items.length == 0) {
         frappe.show_alert({
           message: 'No items, process files first...',
           indicator: 'red'
         });
         return;
       }
-    
-      // Show loading indicator
-      frappe.show_alert({
-        message: 'Fetching price list rates...',
-        indicator: 'blue'
-      });
-
-      
     
       // Step 1: Get customer's price list
       frappe.call({
@@ -956,25 +948,7 @@ ordercapture_ocr.process_dialog = {
           if(r.message) {
             const price_list = r.message.selling_price_list || 'Standard Selling';
             const price_list_currency = r.message.price_list_currency || "INR";
-            const company = frappe.defaults.get_default('company');
             
-            // Process each item
-            let completedItems = 0;
-            
-<<<<<<< HEAD
-            items.forEach((item, idx) => {
-              // Function to try with a specific item code
-              function tryWithItemCode(code_to_try) {
-                return new Promise((resolve) => {
-                  frappe.call({
-                    method: 'ordercapture_ocr.api.get_item_details_with_fallback',
-                    args: {
-                      args: {
-                        item_code: code_to_try,
-                        price_list: price_list,
-                        customer: customer,
-                        company: company,
-=======
             // Step 2: Get price list rates for all items
             let hasErrors = false;
             const itemsWithoutMapping = [];
@@ -1016,67 +990,12 @@ ordercapture_ocr.process_dialog = {
                         price_list: price_list,
                         customer: customer,
                         company: frappe.defaults.get_default('company'),
->>>>>>> ef978d0e297c610c2159c7389f7105811eddcc51
                         doctype: 'Sales Order',
                         price_list_currency: price_list_currency,
                         conversion_rate: 1,
                         currency: price_list_currency,
                       }
                     },
-<<<<<<< HEAD
-                    freeze: true,
-                    show_alert: false,
-                    hide_error_dialog: true,
-                    callback: (result) => {
-                      if(result.message && result.message.price_list_rate) {
-                        resolve({
-                          success: true,
-                          rate: result.message.price_list_rate
-                        });
-                      } else {
-                        resolve({
-                          success: false
-                        });
-                      }
-                    },
-                    error: (err) => {
-                      // This will catch 404 errors when item is not found
-                      console.log(`Error fetching details for ${code_to_try}:`, err);
-                      resolve({
-                        success: false,
-                        error: err
-                      });
-                    }
-                  });
-                });
-              }
-              
-              // First try with itemCode
-              (async function() {
-                let result;
-                
-                // Try with itemCode first if it exists
-                if (item.itemCode) {
-                  result = await tryWithItemCode(item.itemCode);
-                }
-                
-                // If itemCode failed or doesn't exist, try with itemName
-                if ((!result || !result.success) && item.itemName && 
-                    (!item.itemCode || item.itemCode !== item.itemName)) {
-                  frappe.show_alert(`Item not found with code ${item.itemCode}, trying with name ${item.itemName}`);
-                  result = await tryWithItemCode(item.itemName);
-                }
-                
-                // Update the item with the result
-                if (result && result.success) {
-                  item.plRate = result.rate;
-                  
-                  // Highlight if rates are different
-                  if(item.rate !== item.plRate) {
-                    d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
-                  } else {
-                    d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-white');
-=======
                     callback: (result) => {
                       if(result.message) {
                         // Update rate with price list rate
@@ -1103,22 +1022,9 @@ ordercapture_ocr.process_dialog = {
                         [itemsWithoutMapping.join(', ')])
                       );
                     }, 1000); // Small delay to ensure all API calls are processed
->>>>>>> ef978d0e297c610c2159c7389f7105811eddcc51
                   }
                 }
-                
-                // Count completed items
-                completedItems++;
-                
-                // If all items are processed, refresh the grid once
-                if (completedItems === items.length) {
-                  d.fields_dict.items.grid.refresh();
-                  frappe.show_alert({
-                    message: 'Price list rates updated',
-                    indicator: 'green'
-                  });
-                }
-              })();
+              });
             });
           } else {
             frappe.show_alert({
@@ -1126,19 +1032,11 @@ ordercapture_ocr.process_dialog = {
               indicator: 'red'
             });
           }
-          else{
-            console.log("error",r.message);
-            frappe.msgprint("error",r.message);
-          }
         }
       });
     };
     
     
-<<<<<<< HEAD
-    
-=======
->>>>>>> ef978d0e297c610c2159c7389f7105811eddcc51
     // Add this near the start of the file
     frappe.dom.set_style(`
       .highlight-red {
