@@ -961,6 +961,7 @@ ordercapture_ocr.process_dialog = {
             // Process each item
             let completedItems = 0;
             
+<<<<<<< HEAD
             items.forEach((item, idx) => {
               // Function to try with a specific item code
               function tryWithItemCode(code_to_try) {
@@ -973,12 +974,56 @@ ordercapture_ocr.process_dialog = {
                         price_list: price_list,
                         customer: customer,
                         company: company,
+=======
+            // Step 2: Get price list rates for all items
+            let hasErrors = false;
+            const itemsWithoutMapping = [];
+            
+            items.forEach((item, idx) => {
+              // First check if there's a mapping in Customer Item Code Mapping
+              frappe.call({
+                method: 'frappe.client.get_list',
+                args: {
+                  doctype: 'Customer Item Code Mapping',
+                  filters: [
+                    ['customer', '=', customer],
+                    [
+                      'item_code', 'in', [item.itemCode, item.itemName]
+                    ]
+                  ],
+                  fields: ['customer_item_code', 'item_code']
+                },
+                callback: (mapping_result) => {
+                  // If mapping doesn't exist, add to error list
+                  if(!mapping_result.message || mapping_result.message.length === 0 || !mapping_result.message[0].customer_item_code) {
+                    hasErrors = true;
+                    itemsWithoutMapping.push(item.itemCode);
+                    
+                    // Highlight the row with error
+                    d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
+                    return;
+                  }
+                  
+                  // Mapping exists, use the customer's item code
+                  const item_code_to_use = mapping_result.message[0].customer_item_code;
+                  
+                  // Now get item details with the customer's item code
+                  frappe.call({
+                    method: 'erpnext.stock.get_item_details.get_item_details',
+                    args: {
+                      args: {
+                        item_code: item_code_to_use,
+                        price_list: price_list,
+                        customer: customer,
+                        company: frappe.defaults.get_default('company'),
+>>>>>>> ef978d0e297c610c2159c7389f7105811eddcc51
                         doctype: 'Sales Order',
                         price_list_currency: price_list_currency,
                         conversion_rate: 1,
                         currency: price_list_currency,
                       }
                     },
+<<<<<<< HEAD
                     freeze: true,
                     show_alert: false,
                     hide_error_dialog: true,
@@ -1031,6 +1076,34 @@ ordercapture_ocr.process_dialog = {
                     d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
                   } else {
                     d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-white');
+=======
+                    callback: (result) => {
+                      if(result.message) {
+                        // Update rate with price list rate
+                        item.plRate = result.message.price_list_rate;
+                        
+                        // Highlight if rates are different from landing rate
+                        if(item.rate !== item.plRate) {
+                          d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-red');
+                        } else {
+                          d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-white');
+                        }
+                        
+                        d.fields_dict.items.grid.refresh();
+                      }
+                    }
+                  });
+                },
+                always: () => {
+                  // Check if this is the last item and show error if needed
+                  if (idx === items.length - 1 && hasErrors) {
+                    setTimeout(() => {
+                      frappe.throw(
+                        __('Customer Item Code Mapping not found for the following items: {0}', 
+                        [itemsWithoutMapping.join(', ')])
+                      );
+                    }, 1000); // Small delay to ensure all API calls are processed
+>>>>>>> ef978d0e297c610c2159c7389f7105811eddcc51
                   }
                 }
                 
@@ -1047,6 +1120,11 @@ ordercapture_ocr.process_dialog = {
                 }
               })();
             });
+          } else {
+            frappe.show_alert({
+              message: 'Customer not found',
+              indicator: 'red'
+            });
           }
           else{
             console.log("error",r.message);
@@ -1057,7 +1135,10 @@ ordercapture_ocr.process_dialog = {
     };
     
     
+<<<<<<< HEAD
     
+=======
+>>>>>>> ef978d0e297c610c2159c7389f7105811eddcc51
     // Add this near the start of the file
     frappe.dom.set_style(`
       .highlight-red {
