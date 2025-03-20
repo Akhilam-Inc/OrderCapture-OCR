@@ -962,12 +962,13 @@ ordercapture_ocr.process_dialog = {
                   filters: [
                     ['customer', '=', customer],
                     [
-                      'item_code', 'in', [item.itemCode, item.itemName]
+                      'customer_item_code', '=', item.itemCode
                     ]
                   ],
                   fields: ['customer_item_code', 'item_code']
                 },
                 callback: (mapping_result) => {
+                  console.log(mapping_result);
                   // If mapping doesn't exist, add to error list
                   if(!mapping_result.message || mapping_result.message.length === 0 || !mapping_result.message[0].customer_item_code) {
                     hasErrors = true;
