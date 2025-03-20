@@ -979,7 +979,7 @@ ordercapture_ocr.process_dialog = {
                   }
                   
                   // Mapping exists, use the customer's item code
-                  const item_code_to_use = mapping_result.message[0].customer_item_code;
+                  const item_code_to_use = mapping_result.message[0].item_code;
                   
                   // Now get item details with the customer's item code
                   frappe.call({
