@@ -962,7 +962,7 @@ ordercapture_ocr.process_dialog = {
                   filters: [
                     ['customer', '=', customer],
                     [
-                      'item_code', 'in', [item.itemCode, item.itemName]
+                      'customer_item_code', '=', item.itemCode
                     ]
                   ],
                   fields: ['customer_item_code', 'item_code']
