@@ -88,6 +88,7 @@ def create_sales_order(response):
             "doctype": "Sales Order",
             "customer": customer_name,
             "customer_address": customer_address,
+            "shipping_address_name": customer_address,
             "company": defaultCompany,
             "delivery_date": frappe.utils.nowdate(),
             "set_warehouse": source_warehouse,
@@ -110,9 +111,11 @@ def create_sales_order(response):
                 "warehouse": source_warehouse,
             })
         
-        party_details = get_party_details(party=sales_order.customer,party_type='Customer',posting_date=frappe.utils.today(),company=defaultCompany,doctype='Sales Order')
-        sales_order.taxes_and_charges = party_details.get("taxes_and_charges")
-        sales_order.set("taxes", party_details.get("taxes"))        
+        # party_details = get_party_details(party=sales_order.customer,party_type='Customer',posting_date=frappe.utils.today(),company=defaultCompany,doctype='Sales Order')
+        # sales_order.taxes_and_charges = party_details.get("taxes_and_charges")
+        # sales_order.set("taxes", party_details.get("taxes")) 
+        sales_order.set_taxes()
+       
         sales_order.set_missing_values()
         sales_order.calculate_taxes_and_totals()
 
