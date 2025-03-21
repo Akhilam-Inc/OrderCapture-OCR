@@ -71,6 +71,7 @@ def create_sales_order(response):
         customer_name = response.get('Customer').get('customerName')
         po_number = response.get('Customer').get('poNumber')
         po_date = response.get('Customer').get('poDate')
+        customer_address = response.get('Customer').get('customerAddressLink')  
 
         # Fetch customer item codes mapping
         customer_item_codes = get_customer_item_code(response)
@@ -86,6 +87,7 @@ def create_sales_order(response):
         sales_order = frappe.get_doc({
             "doctype": "Sales Order",
             "customer": customer_name,
+            "customer_address": customer_address,
             "company": defaultCompany,
             "delivery_date": frappe.utils.nowdate(),
             "set_warehouse": source_warehouse,
