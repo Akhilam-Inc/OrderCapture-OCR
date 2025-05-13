@@ -130,6 +130,9 @@ ordercapture_ocr.process_dialog = {
                <button class="btn btn-primary w-50 mb-2 mr-2 fetch_price_list_rate" onclick="cur_dialog.events.fetch_price_list_rate()">
                 Fetch Price List Rate
               </button>
+              <button class="btn btn-primary w-50 mb-2 mr-2 update-rate-btn" style="display: none;" onclick="cur_dialog.events.update_rate()">
+                Update Rate
+              </button>
             </div>
             <div class="action-buttons d-flex flex-column gap-2 mb-3 align-items-end">
                 <button class="btn btn-primary w-50 mb-2 mr-2" onclick="cur_dialog.events.create_address()">
@@ -138,7 +141,7 @@ ordercapture_ocr.process_dialog = {
                 <button class="btn btn-primary w-50 mb-2 mr-2 process-file-btn" onclick="cur_dialog.events.process_file()">
                   Process File
                 </button>
-              </div>
+            </div>
           `
         },
         {
@@ -347,9 +350,25 @@ ordercapture_ocr.process_dialog = {
             d.fields_dict.vendor_type.df.options = "FlipKart\nBB";
             // Then set the value
             d.fields_dict.vendor_type.set_input(doc.vendor_type);
+            if (doc.vendor_type === 'FlipKart' && doc.po_number) {
+              d.$wrapper.find('.update-rate-btn').show();
+            } else {
+              d.$wrapper.find('.update-rate-btn').hide();
+            }
           } else {
             d.set_df_property('vendor_type', 'hidden', 1); 
+            d.$wrapper.find('.update-rate-btn').hide();
+
           }
+          d.fields_dict.vendor_type.$input && d.fields_dict.vendor_type.$input.on('change', function() {
+            const vtype = d.get_value('vendor_type');
+            if (vtype === 'FlipKart' && d.get_value('po_number')) {
+              d.$wrapper.find('.update-rate-btn').show();
+            } else {
+              d.$wrapper.find('.update-rate-btn').hide();
+            }
+          });
+
 
           // Update process file button text
           const processBtn = d.$wrapper.find('.process-file-btn');
@@ -374,6 +393,37 @@ ordercapture_ocr.process_dialog = {
           fetch_customer_details(d);
 
         });
+    };
+
+    d.events.update_rate = function() {
+      const items = d.fields_dict.items.grid.data;
+      if (items.length === 0) {
+        frappe.show_alert({
+          message: 'No items, process files first...',
+          indicator: 'red'
+        });
+        return;
+      }
+
+      // Set rate = plRate for each item
+      items.forEach(item => {
+        if (item.plRate !== undefined && item.plRate !== null) {
+          item.rate = item.plRate;
+          frappe.show_alert({
+            message: 'Rate set, please save changes...',
+            indicator: 'blue'
+          });
+        }else{
+          frappe.show_alert({
+            message: 'Please fetch price list rate first...',
+            indicator: 'blue'
+          });
+        }
+      });
+
+      d.fields_dict.items.grid.refresh();
+      refreshTotalFields(d);
+      
     };
 
     // Add this event handler to the dialog events
@@ -588,7 +638,7 @@ ordercapture_ocr.process_dialog = {
                 name: currentCustomer
               },
               callback: (response) => {
-                console.log("Respon/se: ",response)
+                console.log("Response: ",response)
                 const addresses = response.docs[0].__onload.addr_list || [];
                 // console.log("Addresses: ",addresses)
                 
@@ -737,10 +787,13 @@ ordercapture_ocr.process_dialog = {
         d.$wrapper.find('.post-sales-order-btn').show();
         d.$wrapper.find('.save-changes-btn').show();
         d.$wrapper.find('.fetch_price_list_rate').show();
+        d.$wrapper.find('.update-rate-btn').show();
       }else{
         d.$wrapper.find('.post-sales-order-btn').hide();
         d.$wrapper.find('.save-changes-btn').hide();
         d.$wrapper.find('.fetch_price_list_rate').hide();
+        d.$wrapper.find('.update-rate-btn').hide();
+
       }
 
       d.fields_dict.items.grid.refresh();
@@ -878,38 +931,53 @@ ordercapture_ocr.process_dialog = {
             const sales_order_name = r.message;
 
             if (sales_order_name) {
-                // Update OCR Document Processor
+              //Attach the file to the Sales Order
+              const file_path_display = d.get_value('file_path');
+              const actual_file_path = file_path_display.split(': ')[1];
+
               frappe.call({
-                method: 'frappe.client.set_value',
+                method: 'ordercapture_ocr.ordercapture_ocr.sales_order_api.attach_file_to_doc',
                 args: {
-                  doctype: 'OCR Document Processor',
-                  name: d.get_value('current_id'),
-                  fieldname: {
-                    'status': 'Completed',
-                    'sales_order': sales_order_name
-                  }
+                  doctype: 'Sales Order',
+                  docname: sales_order_name,
+                  file_url: actual_file_path
                 },
                 callback: () => {
-                  // Refresh the current document
-                  loadDocument(d.get_value('current_id'));
-    
-                  // Background refresh
-                  refreshPageInBackground();
-    
-                  d.set_value('sales_order_ref', sales_order_name);
-                  d.set_df_property('sales_order_ref', 'hidden', 0)
-    
-                  frappe.show_alert({
-                    message: 'Sales Order created and OCR Document updated',
-                    indicator: 'green'
+                  // Update OCR Document Processor
+                  frappe.call({
+                    method: 'frappe.client.set_value',
+                    args: {
+                      doctype: 'OCR Document Processor',
+                      name: d.get_value('current_id'),
+                      fieldname: {
+                        'status': 'Completed',
+                        'sales_order': sales_order_name
+                      }
+                    },
+                    callback: () => {
+                      // Refresh the current document
+                      loadDocument(d.get_value('current_id'));
+        
+                      // Background refresh
+                      refreshPageInBackground();
+        
+                      d.set_value('sales_order_ref', sales_order_name);
+                      d.set_df_property('sales_order_ref', 'hidden', 0)
+        
+                      frappe.show_alert({
+                        message: 'Sales Order created and OCR Document updated',
+                        indicator: 'green'
+                      });
+                      d.set_df_property('post_sales_order', {
+                        read_only: true,
+                        hidden: true
+                      });
+                      d.$wrapper.find('.post-sales-order-btn').hide();
+                    }
                   });
-                  d.set_df_property('post_sales_order', {
-                    read_only: true,
-                    hidden: true
-                  });
-                  d.$wrapper.find('.post-sales-order-btn').hide();
                 }
-              });
+              })
+              
             }
           },
           always: () => {
@@ -1007,7 +1075,10 @@ ordercapture_ocr.process_dialog = {
                         } else {
                           d.fields_dict.items.grid.grid_rows[idx].row.addClass('highlight-white');
                         }
-                        
+                        frappe.show_alert({
+                          message: 'Price List Rate fetched, please save changes...',
+                          indicator: 'blue'
+                        });
                         d.fields_dict.items.grid.refresh();
                       }
                     }
