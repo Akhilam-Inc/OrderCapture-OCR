@@ -574,7 +574,7 @@ ordercapture_ocr.process_dialog = {
         if (vendor_type) {
           // Save vendor type first
           frappe.call({
-            method: 'frappe.client.set_value',
+            method: 'ordercapture_ocr.api.set_value',
             args: {
               doctype: 'OCR Document Processor',
               name: d.get_value('current_id'),
@@ -596,9 +596,9 @@ ordercapture_ocr.process_dialog = {
           d.$wrapper.css('filter', '');
           $('.ocr-loader').remove();
           if (r.message && r.message.orderDetails) {
-            console.log(r.message)
+            // console.log(r.message)
             frappe.call({
-              method: 'frappe.client.set_value',
+              method: 'ordercapture_ocr.api.set_value',
               args: {
                 doctype: 'OCR Document Processor',
                 name: d.get_value('current_id'),
@@ -638,7 +638,7 @@ ordercapture_ocr.process_dialog = {
                 name: currentCustomer
               },
               callback: (response) => {
-                console.log("Response: ",response)
+                // console.log("Response: ",response)
                 const addresses = response.docs[0].__onload.addr_list || [];
                 // console.log("Addresses: ",addresses)
                 
@@ -667,9 +667,9 @@ ordercapture_ocr.process_dialog = {
                   if (bestMatch) {
                     // console.log("Best Match:", bestMatch.name, "Similarity:", highestSimilarity);
                   // Set the matched address    
-                    console.log("Matched Address:", bestMatch.name, bestMatch.display);
+                    // console.log("Matched Address:", bestMatch.name, bestMatch.display);
                     frappe.call({
-                      method: 'frappe.client.set_value',
+                      method: 'ordercapture_ocr.api.set_value',
                       args: {
                         doctype: 'OCR Document Processor',
                         name: d.get_value('current_id'),
@@ -756,7 +756,7 @@ ordercapture_ocr.process_dialog = {
         }
       };
       frappe.call({
-        method: 'frappe.client.set_value',
+        method: 'ordercapture_ocr.api.set_value',
         args: {
           doctype: 'OCR Document Processor',
           name: d.get_value('current_id'),
@@ -842,12 +842,11 @@ ordercapture_ocr.process_dialog = {
       d.set_value('item_grand_total', item_grand_total);
       
       // Calculate total net amount (sum of rates without taxes)
-      // const total_net_amount = processed_data.orderDetails.reduce((sum, item) => {
-      //   return Number((sum + (item.rate * item.qty)).toFixed(2));
-      // }, 0);
       const total_net_amount = processed_data.orderDetails.reduce((sum, item) => {
-        return Number(sum + (item.totalAmount));
+        return sum + Number(item.totalAmount);
       }, 0).toFixed(2);
+
+      // console.log();
       // Set the total net amount field
       d.set_value('total_net_amount', total_net_amount);
 
@@ -945,7 +944,7 @@ ordercapture_ocr.process_dialog = {
                 callback: () => {
                   // Update OCR Document Processor
                   frappe.call({
-                    method: 'frappe.client.set_value',
+                    method: 'ordercapture_ocr.api.set_value',
                     args: {
                       doctype: 'OCR Document Processor',
                       name: d.get_value('current_id'),
@@ -1137,8 +1136,12 @@ function refreshTotalFields(d){
   const total_item_qty = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
   
   // Calculate total net amount (sum of rates without taxes)
-  const total_net_amount = items.reduce((sum, item) => {
-    return (sum + ((Number(item.rate) || 0) * (Number(item.qty) || 0)));
+  // const total_net_amount = items.reduce((sum, item) => {
+  //   return (sum + ((Number(item.rate) || 0) * (Number(item.qty) || 0)));
+  // }, 0).toFixed(2);
+
+  const total_net_amount = processed_data.orderDetails.reduce((sum, item) => {
+    return Number(sum + (item.totalAmount));
   }, 0).toFixed(2);
   
   // Calculate total taxes
