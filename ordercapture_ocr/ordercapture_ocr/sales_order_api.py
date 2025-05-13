@@ -134,3 +134,35 @@ def check_custom_field_exists(fieldname, doctype="Sales Order"):
     if meta.has_field(fieldname):
         return True
     return False
+
+@frappe.whitelist()
+def attach_file_to_doc(doctype, docname, file_url=None, file_content=None, filename=None, is_private=1):
+    """
+    Attach a file to a given doctype/document.
+    - file_url: URL to an existing file (optional)
+    - file_content: bytes or string content of the file (optional)
+    - filename: name of the file (required if file_content is provided)
+    - is_private: 1 for private, 0 for public
+    Returns the File document name.
+    """
+    if not (file_url or file_content):
+        frappe.throw("Either file_url or file_content must be provided.")
+
+    file_doc = frappe.get_doc({
+        "doctype": "File",
+        "attached_to_doctype": doctype,
+        "attached_to_name": docname,
+        "is_private": is_private
+    })
+
+    if file_url:
+        file_doc.file_url = file_url
+        file_doc.file_name = filename or file_url.split("/")[-1]
+    elif file_content and filename:
+        file_doc.file_name = filename
+        file_doc.content = file_content
+    else:
+        frappe.throw("filename is required when attaching file_content.")
+
+    file_doc.save(ignore_permissions=True)
+    return file_doc.name
