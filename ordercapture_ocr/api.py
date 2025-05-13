@@ -90,8 +90,8 @@ def _process_bb_order(df: pd.DataFrame) -> dict:
 def _process_flipkart_order(df: pd.DataFrame) -> dict:
     """Process FlipKart vendor purchase order"""
     po_number = df.iloc[0, 1]
-    po_date = df.iloc[0, 24]
-    po_expiry = df.iloc[0, 19]
+    po_date = parse_date(df.iloc[0, 24], df.iloc[0, 25])
+    po_expiry = parse_date(df.iloc[0, 19], df.iloc[0, 20])
 
     customer_address = df.iloc[3, 2]
     customer_name = df.iloc[1, 1]
@@ -560,4 +560,32 @@ def get_item_details_with_fallback(args):
             # No item found by code or name
             frappe.log_error(f"Item not found by code or name: {item_code}", "safe_get_item_details")
             return {"price_list_rate": 0}
-   
+        
+
+
+@frappe.whitelist()
+def set_value(doctype, name, fieldname):
+    """
+    Safely update multiple fields on a document using db.set_value.
+    Expects fieldname as a dict of field:value pairs.
+    """
+    if not frappe.has_permission(doctype=doctype, ptype="write", doc=frappe.get_doc(doctype, name)):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+    if isinstance(fieldname, str):
+        import json
+        fieldname = json.loads(fieldname)
+
+    for key, value in fieldname.items():
+        frappe.db.set_value(doctype, name, key, value)
+
+    return {"status": "ok"}
+
+def parse_date(*values):
+    for val in values:
+        try:
+            date = pd.to_datetime(val, errors='raise').date()
+            return date
+        except (ValueError, TypeError):
+            continue
+    return None 
