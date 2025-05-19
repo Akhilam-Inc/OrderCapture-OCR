@@ -70,7 +70,7 @@ def _process_bb_order(df: pd.DataFrame) -> dict:
     customer_address1 = df.iloc[6, 7]
     customer_name = df.iloc[0, 0]
 
-    start_row = df[df.iloc[:, 0].str.contains("SLNO", na=False)].index[0]
+    start_row = df[df.iloc[:, 0].str.contains("S.No", na=False)].index[0]
     end_row = df[df.iloc[:, 3].str.contains("Total", na=False)].index[0]
     
     item_details = _extract_item_details(df, start_row, end_row)
@@ -86,6 +86,8 @@ def _process_bb_order(df: pd.DataFrame) -> dict:
         },
         'items': items
     }
+
+
 
 def _process_flipkart_order(df: pd.DataFrame) -> dict:
     """Process FlipKart vendor purchase order"""
@@ -125,13 +127,13 @@ def _process_bb_items(item_details: pd.DataFrame) -> list:
     items = []
     for _, row in item_details.iterrows():
         items.append({
-            'itemCode': row['SkuCode'],
+            'itemCode': row['SKU Code'],
             'itemName': row['Description'],
             'qty': row['Quantity'],
             'rate': row['Basic Cost'],
             'gst': row['GST Amount']/row['Quantity'],
             'landing_rate': row['Landing Cost'],
-            'totalAmount': row['TotalValue']
+            'totalAmount': row['Total Value']
         })
     return items
 
