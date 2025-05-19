@@ -12,6 +12,7 @@ dependencies = [
     "openai",
     "pdfplumber",
     "pandas",
+    "openpyxl>=3.1.0",
     "google-genai"
 ]
 
