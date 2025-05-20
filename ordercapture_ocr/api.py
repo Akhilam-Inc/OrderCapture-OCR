@@ -61,10 +61,9 @@ def extract_purchase_order_data(file_path: str, vendor_type: str) -> dict:
 
 def _process_bb_order(df: pd.DataFrame) -> dict:
     """Process BB vendor purchase order"""
-    po_number = df.iloc[10, 0].split(":")[1].strip() if "PO Number" in str(df.iloc[10, 0]) else ""
-    po_date = df.iloc[10, 3].split(":")[1].strip() if "PO date" in str(df.iloc[10, 3]) else ""
-    po_expiry_date = df.iloc[10, 7].split(":")[1].strip() if "PO Expiry date" in str(df.iloc[10, 7]) else ""
-
+    po_number = df.iloc[16, 0].split(":")[1].strip() if "PO Number" in str(df.iloc[16, 0]) else ""
+    po_date = df.iloc[16, 3].split(":")[1].strip() if "PO Date" in str(df.iloc[16, 3]) else ""
+    po_expiry_date = df.iloc[16, 7].split(":")[1].strip() if "PO Expiry date" in str(df.iloc[16, 7]) else ""
 
     customer_address = df.iloc[5, 7]
     customer_address1 = df.iloc[6, 7]
@@ -86,7 +85,6 @@ def _process_bb_order(df: pd.DataFrame) -> dict:
         },
         'items': items
     }
-
 
 
 def _process_flipkart_order(df: pd.DataFrame) -> dict:
@@ -153,152 +151,7 @@ def _process_flipkart_items(item_details: pd.DataFrame) -> list:
             'landing_rate': rate + gst,
             'totalAmount': row['Total Amount']
         })
-    return items
-
-# @frappe.whitelist()
-# def extract_purchase_order_data(file_path: str, vendor_type: str) -> dict:
-#     """
-#     Extracts structured purchase order data from an Excel file.
-
-#     Args:
-#         file_path (str): Path to the Excel file.
-#         sheet_name (str): Sheet name to process. Defaults to the first sheet if not provided.
-
-#     Returns:
-#         dict: Extracted structured purchase order data.
-#     """
-#     # Load the Excel file
-#     file_path = frappe.local.site + file_path
-#     df = pd.read_excel(file_path)
-
-#     print(vendor_type)
-
-#     try:
-#         purchase_order_data = {}
-#         order_details = []
-
-#         if vendor_type == 'BB':
-#             # # Extract PO Number and Date
-#             po_number = df.iloc[10, 0].split(":")[1].strip() if "PO Number" in str(df.iloc[10, 0]) else "Unknown"
-#             po_date = df.iloc[10, 3].split(":")[1].strip() if "PO date" in str(df.iloc[10, 3]) else "Unknown"
-
-#             # print(f"PO Number: {po_number}, PO Date: {po_date}")
-
-#             # # print(df.head(20))
-
-#             # # Extract Item Details
-#             # # Find Start row by checking "SLNO" found in the first column
-#             start_row = df[df.iloc[:, 0].str.contains("SLNO", na=False)].index[0]
-#             # # print(f"Start Row: {start_row}")
-#             # # Find End row by checking "Total" found in the forth column
-#             end_row = df[df.iloc[:, 3].str.contains("Total", na=False)].index[0]
-
-#             # # print(f"End Row: {end_row}")
-            
-#             # # #Get end row data
-#             # # end_row_data = df.iloc[end_row, :]
-#             # # print(end_row_data)
-            
-
-#             # # make a data frame with first row as header
-#             item_details = df.iloc[start_row:end_row, :]
-
-#             # # make first row as header and remove first row
-#             item_details.columns = item_details.iloc[0]
-#             item_details = item_details[1:]
-            
-#             # # add below details in the dictionary
-#             # # "orderDetails": [
-#             # # {
-#             # # "itemCode": "10119089",
-#             # # "itemName": "GO DESi Tangy Imli Desi Popz Lollipop Candy (1 pack (10 pieces))",
-#             # # "qty": 150,
-#             # # "rate": 30.95,
-#             # # "gst": 5,
-#             # # "landing_rate": 32.5,
-#             # # "totalAmount": 4875
-#             # # },
-#             # # {
-#             # # "itemCode": "10162269",
-#             # # "itemName": "Premium Kaju Katli Box by GO DESi (200g)",
-#             # # "qty": 120,
-#             # # "rate": 142.38,
-#             # # "gst": 5,
-#             # # "landing_rate": 149.5,
-#             # # "totalAmount": 17940
-#             # # }
-#             # # ]
-
-#             # # extract all the items details
-            
-#             # #iterate over dataframes rows
-#             for index, row in item_details.iterrows():
-#                 itemCode = row['SkuCode']
-#                 itemName = row['Description']
-#                 qty = row['Quantity']
-#                 rate = row['Basic Cost']
-#                 gst = row['GST Amount']/row['Quantity']
-#                 landing_rate = row['Landing Cost']
-#                 totalAmount = row['TotalValue']
-
-#                 order_details.append({
-#                     "itemCode": itemCode,
-#                     "itemName": itemName,
-#                     "qty": qty,
-#                     "rate": rate,
-#                     "gst": gst,
-#                     "landing_rate": landing_rate,
-#                     "totalAmount": totalAmount
-#                 })
-
-#         # Logic for FlipKart
-#         elif vendor_type == 'FlipKart':
-#             po_number = df.iloc[0, 1]
-#             po_date = df.iloc[0, 11]
-#             # Extract Item Details
-#             # Find Start row by checking "S. no" found in the first column
-#             start_row = df[df.iloc[:, 0].str.contains("S. no", na=False)].index[0]
-
-#             # Find End row by checking "Total" found in the forth column
-#             end_row = df[df.iloc[:, 3].str.contains("Total", na=False)].index[0]
-
-#             # make a data frame with first row as header
-#             item_details = df.iloc[start_row:end_row, :]
-
-#             # make first row as header and remove first row
-#             item_details.columns = item_details.iloc[0]
-#             item_details = item_details[1:]
-
-#             for index, row in item_details.iterrows():
-#                 itemCode = row['FSN/ISBN13']
-#                 itemName = row['Title']
-#                 qty = row['Quantity']
-#                 rate = convert_string_with_inr(row['Supplier Price'])
-#                 gst = convert_string_with_inr(row['Tax Amount'])/row['Quantity']
-#                 landing_rate = rate + gst
-#                 totalAmount = row['Total Amount']
-
-#                 print(f"Item Code: {itemCode}, Item Name: {itemName}, Qty: {qty}, Rate: {rate}, GST: {gst}, Landing Rate: {landing_rate}, Total Amount: {totalAmount}")
-
-#                 order_details.append({
-#                     "itemCode": itemCode,
-#                     "itemName": itemName,
-#                     "qty": qty,
-#                     "rate": rate,
-#                     "gst": gst,
-#                     "landing_rate": landing_rate,
-#                     "totalAmount": totalAmount
-#                 })
-
-#         purchase_order_data['orderNumber'] = 'po_number'
-        
-#         purchase_order_data['orderDetails'] = order_details
-
-#         return purchase_order_data
-
-#     except Exception as e:
-#         frappe.throw(f"Error extracting data: {e}")
-#         return {}
+    return items    
 
 def convert_string_with_inr(value):
     return float(sub(r'[^0-9.]', '', value))
@@ -424,39 +277,6 @@ def get_ocr_details(file_path):
     data = parse_purchase_order_with_llm(table_json)
     frappe.log_error(title="Data", message=data)
 
-    # frappe.throw("File Path: " + file_path)
-
-    # response =  {
-    #     "Customer": {
-    #         "customerAddressLink": "Link to Customer Address",
-    #         "customerCode": "CUST123",
-    #         "customerName": "Acme Corporation"
-    #     },
-    #     "orderDetails": [
-    #         {
-    #             "itemCode": "ITEM123",
-    #             "itemName": "Widget",
-    #             "qty": 10,
-    #             "rate": 100.00,
-    #             "gst": 18.00,
-    #             "totalAmount": 1180.00,
-    #             "poRate": 95.00
-    #         },
-    #         {
-    #             "itemCode": "ITEM002",
-    #             "itemName": "Gadget",
-    #             "qty": 5,
-    #             "rate": 200.00,
-    #             "gst": 36.00,
-    #             "totalAmount": 1180.00,
-    #             "poRate": 190.00
-    #         }
-    #     ],
-    #     "totals": {
-    #         "totalItemQty": 15,
-    #         "itemGrandTotal": 2360.00
-    #     }
-    # }
 
     return data
 
@@ -591,3 +411,105 @@ def parse_date(*values):
         except (ValueError, TypeError):
             continue
     return None 
+
+def prepare_dynamic_prompt():
+    """
+    Prepares a dynamic prompt for LLM based on vendor field mappings.
+    
+    Returns:
+        str: A formatted prompt with vendor-specific field mappings
+    """
+    try:
+        # Get vendor field mappings from DocType or configuration
+        vendor_mappings = frappe.get_all(
+            "Vendor Field Mapping",
+            fields=["vendor_type", "field_name", "target_field", "description"],
+            filters={"enabled": 1}
+        )
+        
+        if not vendor_mappings:
+            return get_default_prompt()
+        
+        # Organize mappings by vendor type
+        vendors = {}
+        for mapping in vendor_mappings:
+            vendor_type = mapping.get("vendor_type")
+            if vendor_type not in vendors:
+                vendors[vendor_type] = []
+            
+            vendors[vendor_type].append({
+                "field_name": mapping.get("field_name"),
+                "target_field": mapping.get("target_field"),
+                "description": mapping.get("description")
+            })
+        
+        # Build the prompt
+        prompt = "Extract the following information from the purchase order document:\n\n"
+        prompt += "General fields to extract:\n"
+        prompt += "- Order Number/PO Number\n"
+        prompt += "- Order Date\n"
+        prompt += "- Order Expiry Date (if available)\n"
+        prompt += "- Customer Name\n"
+        prompt += "- Customer Address\n\n"
+        
+        prompt += "For line items, extract:\n"
+        prompt += "- Item Code\n"
+        prompt += "- Item Name/Description\n"
+        prompt += "- Quantity\n"
+        prompt += "- Rate/Price\n"
+        prompt += "- GST/Tax Amount\n"
+        prompt += "- Total Amount\n\n"
+        
+        prompt += "Vendor-specific field mappings:\n"
+        for vendor, mappings in vendors.items():
+            prompt += f"\nFor {vendor} vendor:\n"
+            for mapping in mappings:
+                prompt += f"- '{mapping['field_name']}' maps to '{mapping['target_field']}'"
+                if mapping.get("description"):
+                    prompt += f" ({mapping['description']})"
+                prompt += "\n"
+        
+        prompt += "\nReturn the extracted data in a structured JSON format with the following schema:\n"
+        prompt += """{
+            "orderNumber": "string",
+            "orderDate": "YYYY-MM-DD",
+            "orderExpiryDate": "YYYY-MM-DD",
+            "Customer": {
+                "customerName": "string",
+                "customerAddress": "string"
+            },
+            "orderDetails": [
+                {
+                "itemCode": "string",
+                "itemName": "string",
+                "qty": number,
+                "rate": number,
+                "gst": number,
+                "landing_rate": number,
+                "totalAmount": number
+                }
+            ]
+        }"""
+        
+        return prompt
+    
+    except Exception as e:
+        frappe.log_error(f"Error preparing dynamic prompt: {str(e)}")
+        return get_default_prompt()
+
+def get_default_prompt():
+    """
+    Returns a default prompt when vendor mappings are not available
+    
+    Returns:
+        str: Default prompt for LLM
+    """
+    return """Extract the following information from the purchase order document:
+- Order Number/PO Number
+- Order Date
+- Order Expiry Date (if available)
+- Customer Name
+- Customer Address
+- Line items with Item Code, Item Name, Quantity, Rate, GST Amount, and Total Amount
+
+Return the extracted data in a structured JSON format."""
