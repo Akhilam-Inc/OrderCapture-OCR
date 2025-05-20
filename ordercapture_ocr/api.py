@@ -265,7 +265,7 @@ def get_customer_addresses(customer_name):
 
         
 @frappe.whitelist()
-def get_ocr_details(file_path):
+def get_ocr_details(file_path, customer=None):
     file_doc = frappe.get_doc("File", {"file_url": file_path})
     if not file_doc:
         frappe.throw("File not found")

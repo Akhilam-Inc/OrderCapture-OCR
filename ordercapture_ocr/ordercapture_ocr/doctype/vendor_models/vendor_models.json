@@ -1,33 +1,29 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "field:vendor_name",
- "creation": "2025-05-19 22:04:17.786983",
+ "autoname": "field:model_name",
+ "creation": "2025-05-20 21:10:14.311877",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "vendor_name",
-  "vendor_map"
+  "model_name"
  ],
  "fields": [
   {
-   "fieldname": "vendor_name",
+   "fieldname": "model_name",
    "fieldtype": "Data",
-   "label": "Vendor Name",
+   "in_list_view": 1,
+   "label": "Model Name",
+   "reqd": 1,
    "unique": 1
-  },
-  {
-   "fieldname": "vendor_map",
-   "fieldtype": "Table",
-   "options": "Vendor Field Table"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-05-19 22:06:34.392146",
+ "modified": "2025-05-20 21:10:37.415068",
  "modified_by": "Administrator",
  "module": "OrderCapture OCR",
- "name": "Vendor Field Map",
+ "name": "Vendor Models",
  "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
@@ -44,6 +40,7 @@
    "write": 1
   }
  ],
+ "quick_entry": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []

@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class VendorFieldMap(Document):
+class VendorModels(Document):
 	pass

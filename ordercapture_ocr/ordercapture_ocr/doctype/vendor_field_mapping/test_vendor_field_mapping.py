@@ -5,5 +5,5 @@
 from frappe.tests.utils import FrappeTestCase
 
 
-class TestVendorFieldMap(FrappeTestCase):
+class TestVendorFieldMapping(FrappeTestCase):
 	pass
