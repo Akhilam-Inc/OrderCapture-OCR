@@ -564,7 +564,8 @@ ordercapture_ocr.process_dialog = {
         method = 'ordercapture_ocr.api.extract_purchase_order_data';
       }
       let args = {
-        file_path: actual_file_path
+        file_path: actual_file_path,
+        customer: d.get_value('customer'),
       };
     
       // Add vendor_type for non-PDF files
