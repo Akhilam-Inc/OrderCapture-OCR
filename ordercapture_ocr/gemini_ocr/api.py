@@ -136,6 +136,19 @@ def extract_structured_data(file_path, customer=None, model: BaseModel = Order):
         vendor_mappings = {}
         if customer:
             vendor_mappings = get_vendor_field_mappings(customer)
+
+        # Get the vendor field mapping for the customer to extract prompt_description
+        mapping_docs = frappe.get_all(
+            "Vendor Field Mapping",
+            filters={"customer": customer},
+            fields=["name", "prompt_description"],
+            limit=1
+        )
+        
+        if mapping_docs and mapping_docs[0].get("prompt_description"):
+            prompt_description = mapping_docs[0].get("prompt_description")
+
+            # frappe.throw(f"Prompt description: {prompt_description}")
         
         # If we have vendor mappings, update the model descriptions
         if vendor_mappings:
@@ -154,7 +167,7 @@ def extract_structured_data(file_path, customer=None, model: BaseModel = Order):
                 field_name_lower = field_name.lower()
                 if field_name_lower in vendor_mappings.get("Order", {}):
                     vendor_field = vendor_mappings["Order"][field_name_lower]
-                    field_description = f"{field_description} (Vendor refers to this as '{vendor_field}')"
+                    field_description = f"{field_description} (Vendor refers to this as '{vendor_field}'), also note that {prompt_description}"
                 
                 # Use custom nested models for specific fields
                 if field_name == "orderDetails":
