@@ -423,7 +423,7 @@ ordercapture_ocr.process_dialog = {
       });
 
       d.fields_dict.items.grid.refresh();
-      // refreshTotalFields(d, );
+      refreshTotalFields(d);
       
     };
 
