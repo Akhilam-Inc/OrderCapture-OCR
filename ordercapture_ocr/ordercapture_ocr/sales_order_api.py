@@ -1,8 +1,9 @@
 import frappe
 from frappe import _
-from frappe.utils import (getdate,today)
+from frappe.utils import (getdate, today, formatdate, cstr)
 from erpnext.accounts.party import get_party_details
 import json
+from datetime import datetime
 
 # response =  {
 #     "Customer": {
@@ -58,6 +59,37 @@ def get_customer_item_code(response):
         frappe.log_error(title="Error in get_customer_item_code", message=frappe.get_traceback())
         return {}
 
+def parse_iso_date(date_string):
+    """
+    Parse ISO date string (YYYY-MM-DD) to Frappe date format
+    """
+    if not date_string:
+        return None
+    
+    try:
+        # Log the original date string for debugging
+        frappe.log_error(f"Original date string: {date_string}", "Date Debug")
+        
+        # If it's in YYYY-MM-DD format, keep it as string for Frappe
+        if isinstance(date_string, str) and len(date_string) == 10 and date_string.count('-') == 2:
+            parts = date_string.split('-')
+            if len(parts) == 3 and len(parts[0]) == 4:  # YYYY-MM-DD format
+                year, month, day = parts
+                # Reconstruct the date string to ensure correct format
+                formatted_date = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+                
+                # Log the formatted date for debugging
+                frappe.log_error(f"Formatted date string: {formatted_date}", "Date Debug")
+                
+                # Return as string in YYYY-MM-DD format (Frappe's internal format)
+                return formatted_date
+        
+        # Fallback to original string if format doesn't match
+        return cstr(date_string)
+        
+    except Exception as e:
+        frappe.log_error(f"Failed to parse date: {date_string}, Error: {str(e)}", "Date Parsing Error")
+        return None
 
 @frappe.whitelist()
 def create_sales_order(response):
@@ -72,6 +104,9 @@ def create_sales_order(response):
         po_number = response.get('Customer').get('poNumber')
         po_date = response.get('Customer').get('poDate')
         customer_address = response.get('Customer').get('customerAddressLink')  
+        # Convert po_date to Frappe date format
+        if po_date:
+            po_date = parse_iso_date(po_date)
 
         # Fetch customer item codes mapping
         customer_item_codes = get_customer_item_code(response)
@@ -97,8 +132,12 @@ def create_sales_order(response):
             "items": []
         })
 
+        
+
         if check_custom_field_exists("custom_po_expiry_date"):
-            sales_order.custom_po_expiry_date = response.get('Customer').get('poExpiryDate')
+            po_expiry_date = response.get('Customer').get('poExpiryDate')
+            if po_expiry_date:
+                sales_order.custom_po_expiry_date = parse_iso_date(po_expiry_date)
 
         # Add items to the Sales Order
         for item in response.get('orderDetails', []):

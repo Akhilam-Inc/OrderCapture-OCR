@@ -396,6 +396,7 @@ ordercapture_ocr.process_dialog = {
     };
 
     d.events.update_rate = function() {
+      
       const items = d.fields_dict.items.grid.data;
       if (items.length === 0) {
         frappe.show_alert({
@@ -422,7 +423,7 @@ ordercapture_ocr.process_dialog = {
       });
 
       d.fields_dict.items.grid.refresh();
-      refreshTotalFields(d);
+      // refreshTotalFields(d, );
       
     };
 
@@ -734,28 +735,29 @@ ordercapture_ocr.process_dialog = {
         customerDetails: {
           customer: d.get_value('customer'),
           customerName: d.get_value('customer_name'),
-          customerAddressLink: d.get_value('customer_address_link'),
-          customerAddress: d.get_value('customer_address')
+          customerAddressLink: d.get_value('customer_address_link') || "",
+          customerAddress: d.get_value('customer_address') || ""
         },
         orderDetails: items.map(item => ({
           itemCode: item.itemCode,
           itemName: item.itemName,
-          qty: item.qty,
-          rate: item.rate,
-          landing_rate: item.landing_rate,
-          gst: item.gst,
-          plRate: item.plRate,
-          totalAmount: item.totalAmount
+          qty: item.qty || 0,
+          rate: item.rate || 0,
+          landing_rate: item.landing_rate || 0,
+          gst: item.gst || 0,
+          plRate: item.plRate || 0,
+          totalAmount: item.totalAmount || 0
         })),
-        orderNumber: d.get_value('po_number'),
-        orderDate: d.get_value('po_date'),
-        orderExpiryDate: d.get_value('po_expiry_date'),
+        orderNumber: d.get_value('po_number') || "",
+        orderDate: d.get_value('po_date') || "",
+        orderExpiryDate: d.get_value('po_expiry_date') || "",
 
         totals: {
-          totalItemQty: d.get_value('total_item_qty'),
-          itemGrandTotal: d.get_value('item_grand_total')
+          totalItemQty: d.get_value('total_item_qty') || 0,
+          itemGrandTotal: d.get_value('item_grand_total') || 0
         }
       };
+
       frappe.call({
         method: 'ordercapture_ocr.api.set_value',
         args: {
@@ -766,7 +768,7 @@ ordercapture_ocr.process_dialog = {
           }
         },
         callback: (r) => {
-          setTableFromProcessedJson(d, r.message.processed_json)
+          setTableFromProcessedJson(d, JSON.stringify(processed_data))
           
           d.$wrapper.find('.post-sales-order-btn').prop('disabled', false);
           frappe.show_alert({
@@ -871,11 +873,10 @@ ordercapture_ocr.process_dialog = {
       const items_data = d.fields_dict.items.grid.data;
       const po_number = d.get_value('po_number');
       const vendorIsFlipkart = d.get_value('vendor_type') === 'FlipKart';
-      const dateFormat = vendorIsFlipkart ? "DD-MM-YY" : undefined;
+      const dateFormat = vendorIsFlipkart ? "YYYY-MM-DD" : undefined;
 
       const po_date = moment(d.get_value('po_date'), dateFormat).format("YYYY-MM-DD");
       const po_expiry_date = moment(d.get_value('po_expiry_date'), dateFormat).format("YYYY-MM-DD");      
-
       if (items_data.length === 0) {
         frappe.show_alert({
           message: 'Please add items to Post sales order.',
@@ -1130,19 +1131,16 @@ ordercapture_ocr.process_dialog = {
 };
 
 // Create a function to refresh all totals
+// Create a function to refresh all totals
 function refreshTotalFields(d){
   const items = d.fields_dict.items.grid.data;
   
   // Calculate total item quantity
   const total_item_qty = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
   
-  // Calculate total net amount (sum of rates without taxes)
-  // const total_net_amount = items.reduce((sum, item) => {
-  //   return (sum + ((Number(item.rate) || 0) * (Number(item.qty) || 0)));
-  // }, 0).toFixed(2);
-
-  const total_net_amount = processed_data.orderDetails.reduce((sum, item) => {
-    return Number(sum + (item.totalAmount));
+  // Calculate total net amount (sum of totalAmount from items)
+  const total_net_amount = items.reduce((sum, item) => {
+    return sum + (Number(item.totalAmount) || 0);
   }, 0).toFixed(2);
   
   // Calculate total taxes
@@ -1166,7 +1164,8 @@ function refreshTotalFields(d){
   d.set_value('total_net_amount', total_net_amount);
   d.set_value('total_taxes', total_taxes);
   d.set_value('item_grand_total', item_grand_total);
-};
+}
+
 
 function refreshPageInBackground() {
   // Create a hidden iframe
