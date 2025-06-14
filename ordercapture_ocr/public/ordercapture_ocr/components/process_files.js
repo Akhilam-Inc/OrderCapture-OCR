@@ -832,9 +832,18 @@ ordercapture_ocr.process_dialog = {
           d.$wrapper.find('.post-sales-order-btn').prop('disabled', false);
         }
       });
+
+      // Convert orderDate to YYYY-MM-DD format
+      const date = new Date(processed_data.orderDate);
+      const formattedDate = date.toISOString().slice(0, 10);
+
+      const Expirydate = new Date(processed_data.orderExpiryDate);
+      const formattedExpiryDate = Expirydate.toISOString().slice(0, 10);
+
+      d.set_value('po_date', formattedDate);
       d.set_value('po_number',  processed_data.orderNumber);
-      d.set_value('po_date', processed_data.orderDate);
-      d.set_value('po_expiry_date', processed_data.orderExpiryDate);
+      // d.set_value('po_date', processed_data.orderDate);
+      d.set_value('po_expiry_date', formattedExpiryDate);
       // Calculate totals from table data
       const items = d.fields_dict.items.grid.data;
       const total_item_qty = items.reduce((sum, item) => sum + (item.qty || 0), 0);
@@ -873,7 +882,7 @@ ordercapture_ocr.process_dialog = {
       const items_data = d.fields_dict.items.grid.data;
       const po_number = d.get_value('po_number');
       const vendorIsFlipkart = d.get_value('vendor_type') === 'FlipKart';
-      const dateFormat = vendorIsFlipkart ? "YYYY-MM-DD" : "DD-MM-YYYY";
+      const dateFormat = vendorIsFlipkart ? "YYYY-MM-DD" : undefined;
 
       const po_date = moment(d.get_value('po_date'), dateFormat).format("YYYY-MM-DD");
       const po_expiry_date = moment(d.get_value('po_expiry_date'), dateFormat).format("YYYY-MM-DD");      

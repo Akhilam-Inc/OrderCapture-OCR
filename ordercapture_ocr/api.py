@@ -406,11 +406,12 @@ def set_value(doctype, name, fieldname):
 def parse_date(*values):
     for val in values:
         try:
-            date = pd.to_datetime(val, errors='raise').date()
+            # Specify dayfirst=True to interpret as DD/MM/YYYY format
+            date = pd.to_datetime(val, errors='raise', dayfirst=True).date()
             return date
         except (ValueError, TypeError):
             continue
-    return None 
+    return None
 
 def prepare_dynamic_prompt():
     """
