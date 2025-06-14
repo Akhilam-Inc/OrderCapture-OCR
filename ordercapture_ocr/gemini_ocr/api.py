@@ -30,7 +30,7 @@ class Totals(BaseModel):
 class CustomerDetails(BaseModel):
     customerCode: Optional[str] = Field(description="The customer code in shipping")
     customerName: Optional[str] = Field(description="The customer name in shipping")
-    customerAddress: Optional[str] = Field(description="The customer address in shipping")
+    customerAddress: Optional[str] = Field(description="The customer address in shipping, also check delivered to address in some cases, there might not be shipping address, so extract address from delivered to address if available")
 
 class Order(BaseModel):
     """Extract the invoice number, date and all list items with description, quantity and gross worth and the total gross worth."""

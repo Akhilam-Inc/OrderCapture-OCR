@@ -873,7 +873,7 @@ ordercapture_ocr.process_dialog = {
       const items_data = d.fields_dict.items.grid.data;
       const po_number = d.get_value('po_number');
       const vendorIsFlipkart = d.get_value('vendor_type') === 'FlipKart';
-      const dateFormat = vendorIsFlipkart ? "YYYY-MM-DD" : undefined;
+      const dateFormat = vendorIsFlipkart ? "YYYY-MM-DD" : "DD-MM-YYYY";
 
       const po_date = moment(d.get_value('po_date'), dateFormat).format("YYYY-MM-DD");
       const po_expiry_date = moment(d.get_value('po_expiry_date'), dateFormat).format("YYYY-MM-DD");      
