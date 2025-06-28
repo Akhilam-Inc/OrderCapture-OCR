@@ -647,7 +647,7 @@ ordercapture_ocr.process_dialog = {
                 if (addresses.length) {
                   // Use more robust address comparison
                   let bestMatch = null;
-                  let highestSimilarity = 30;
+                  let highestSimilarity = 60;
 
                   addresses.forEach(addr => {
                     const normalizedUploadAddr = customerAddress.toLowerCase().replace(/\s+/g, ' ');
