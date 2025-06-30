@@ -645,11 +645,13 @@ ordercapture_ocr.process_dialog = {
                 // console.log("Addresses: ",addresses)
                 
                 if (addresses.length) {
-                  // Use more robust address comparison
+                  // Define similarity thresholds in descending order
+                  const similarityThresholds = [100, 80, 60, 40, 20];
                   let bestMatch = null;
-                  let highestSimilarity = 60;
+                  let highestSimilarity = 0;
 
-                  addresses.forEach(addr => {
+                  // Calculate similarity for all addresses first
+                  const addressSimilarities = addresses.map(addr => {
                     const normalizedUploadAddr = customerAddress.toLowerCase().replace(/\s+/g, ' ');
                     const normalizedSavedAddr = addr.display.toLowerCase().replace(/\s+/g, ' ');
                     
@@ -658,18 +660,41 @@ ordercapture_ocr.process_dialog = {
                     const editDistance = levenshteinDistance(normalizedUploadAddr, normalizedSavedAddr);
                     const similarityPercentage = ((longerLength - editDistance) / longerLength) * 100;
                     
-                    // console.log("Address:", addr.name, "Similarity:", similarityPercentage);
-                    
-                    if (similarityPercentage > highestSimilarity) {
-                      highestSimilarity = similarityPercentage;
-                      bestMatch = addr;
-                    }
+                    return {
+                      address: addr,
+                      similarity: similarityPercentage
+                    };
                   });
 
+                  // Check for matches in descending order of similarity thresholds
+                  for (const threshold of similarityThresholds) {
+                    const matchesAtThreshold = addressSimilarities.filter(item => 
+                      item.similarity >= threshold && item.similarity < (threshold + 20)
+                    );
+                    
+                    if (matchesAtThreshold.length > 0) {
+                      // If multiple matches at same threshold, pick the one with highest similarity
+                      bestMatch = matchesAtThreshold.reduce((prev, current) => 
+                        (prev.similarity > current.similarity) ? prev : current
+                      );
+                      highestSimilarity = bestMatch.similarity;
+                      bestMatch = bestMatch.address;
+                      break;
+                    }
+                  }
+
+                  // If no match found at any threshold, check if there's any match above 20%
+                  if (!bestMatch) {
+                    const anyMatch = addressSimilarities.find(item => item.similarity >= 20);
+                    if (anyMatch) {
+                      bestMatch = anyMatch.address;
+                      highestSimilarity = anyMatch.similarity;
+                    }
+                  }
+
                   if (bestMatch) {
-                    // console.log("Best Match:", bestMatch.name, "Similarity:", highestSimilarity);
-                  // Set the matched address    
-                    // console.log("Matched Address:", bestMatch.name, bestMatch.display);
+                    console.log("Best Match:", bestMatch.name, "Similarity:", highestSimilarity.toFixed(2) + "%");
+                    // Set the matched address    
                     frappe.call({
                       method: 'ordercapture_ocr.api.set_value',
                       args: {
@@ -695,7 +720,6 @@ ordercapture_ocr.process_dialog = {
               }
             });
           }
-
         },
         
         error: (r) => {
