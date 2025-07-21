@@ -640,84 +640,8 @@ ordercapture_ocr.process_dialog = {
                 name: currentCustomer
               },
               callback: (response) => {
-                // console.log("Response: ",response)
                 const addresses = response.docs[0].__onload.addr_list || [];
-                // console.log("Addresses: ",addresses)
-                
-                // if (addresses.length) {
-                //   // Define similarity thresholds in descending order
-                //   const similarityThresholds = [100, 80, 60, 40, 20];
-                //   let bestMatch = null;
-                //   let highestSimilarity = 0;
-
-                //   // Calculate similarity for all addresses first
-                //   const addressSimilarities = addresses.map(addr => {
-                //     const normalizedUploadAddr = customerAddress.toLowerCase().replace(/\s+/g, ' ');
-                //     const normalizedSavedAddr = addr.display.toLowerCase().replace(/\s+/g, ' ');
-                    
-                //     // Calculate similarity percentage
-                //     const longerLength = Math.max(normalizedUploadAddr.length, normalizedSavedAddr.length);
-                //     const editDistance = levenshteinDistance(normalizedUploadAddr, normalizedSavedAddr);
-                //     const similarityPercentage = ((longerLength - editDistance) / longerLength) * 100;
-                    
-                //     return {
-                //       address: addr,
-                //       similarity: similarityPercentage
-                //     };
-                //   });
-                  
-
-                //   // Check for matches in descending order of similarity thresholds
-                //   for (const threshold of similarityThresholds) {
-                //     const matchesAtThreshold = addressSimilarities.filter(item => 
-                //       item.similarity >= threshold && item.similarity < (threshold + 20)
-                //     );
-                    
-                //     if (matchesAtThreshold.length > 0) {
-                //       // If multiple matches at same threshold, pick the one with highest similarity
-                //       bestMatch = matchesAtThreshold.reduce((prev, current) => 
-                //         (prev.similarity > current.similarity) ? prev : current
-                //       );
-                //       highestSimilarity = bestMatch.similarity;
-                //       bestMatch = bestMatch.address;
-                //       break;
-                //     }
-                //   }
-
-                //   // If no match found at any threshold, check if there's any match above 20%
-                //   if (!bestMatch) {
-                //     const anyMatch = addressSimilarities.find(item => item.similarity >= 20);
-                //     if (anyMatch) {
-                //       bestMatch = anyMatch.address;
-                //       highestSimilarity = anyMatch.similarity;
-                //     }
-                //   }
-
-                //   if (bestMatch) {
-                //     console.log("Best Match:", bestMatch.name, "Similarity:", highestSimilarity.toFixed(2) + "%");
-                //     // Set the matched address    
-                //     frappe.call({
-                //       method: 'ordercapture_ocr.api.set_value',
-                //       args: {
-                //         doctype: 'OCR Document Processor',
-                //         name: d.get_value('current_id'),
-                //         fieldname: {
-                //           'customer_address': bestMatch.name,
-                //           'customer_address_display': bestMatch.display
-                //         }
-                //       },
-                //       callback: () => {
-                //         d.set_value('customer_address_link', bestMatch.name);
-                //       }
-                //     });
-
-                //   } else {
-                //     frappe.show_alert({
-                //       message: __('Customer address not found. Create new address.'),
-                //       indicator: 'red'
-                //     }, 10);
-                //   }
-                // }
+                console.log("Fetched Addresses:", addresses);
 
                 if(addresses.length){
                                     // Calculate similarity for all addresses first
