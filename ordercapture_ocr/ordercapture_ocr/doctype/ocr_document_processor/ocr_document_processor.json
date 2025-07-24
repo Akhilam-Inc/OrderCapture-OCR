@@ -83,12 +83,12 @@
    "fieldname": "vendor_type",
    "fieldtype": "Select",
    "label": "Vendor Type",
-   "options": "FlipKart\nBB"
+   "options": "\nFlipKart\nBB"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-01-21 08:04:39.275811",
+ "modified": "2025-07-21 20:19:54.202950",
  "modified_by": "Administrator",
  "module": "OrderCapture OCR",
  "name": "OCR Document Processor",
