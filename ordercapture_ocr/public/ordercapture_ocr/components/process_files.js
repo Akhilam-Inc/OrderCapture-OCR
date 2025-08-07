@@ -141,6 +141,9 @@ ordercapture_ocr.process_dialog = {
                 <button class="btn btn-primary w-50 mb-2 mr-2 process-file-btn" onclick="cur_dialog.events.process_file()">
                   Process File
                 </button>
+                <button class="btn btn-primary w-50 mb-2 mr-2 format-item-code-btn" onclick="cur_dialog.events.show_format_dialog()">
+                  Format Item Code
+                </button>
             </div>
           `
         },
@@ -1201,6 +1204,193 @@ ordercapture_ocr.process_dialog = {
           }
         }
       });
+    };
+
+    // Format Item Code Dialog
+    d.events.show_format_dialog = function() {
+      const items = d.fields_dict.items.grid.data;
+      
+      if(items.length == 0) {
+        frappe.show_alert({
+          message: 'No items to format. Please process files first.',
+          indicator: 'red'
+        });
+        return;
+      }
+
+      // Create format dialog
+      const formatDialog = new frappe.ui.Dialog({
+        title: 'Format Item Codes',
+        size: 'large',
+        fields: [
+          {
+            fieldtype: 'Section Break',
+            fieldname: 'regex_section',
+            label: 'Find and Replace'
+          },
+          {
+            fieldtype: 'Data',
+            fieldname: 'find_pattern',
+            label: 'Find',
+            description: 'Enter text or pattern to find in item codes. Use regex for advanced matching.',
+            placeholder: 'Example: ABC- or (\\d+) for numbers'
+          },
+          {
+            fieldtype: 'Data',
+            fieldname: 'replace_pattern',
+            label: 'Replace With',
+            description: 'Enter text to replace the found pattern. Use $1, $2, etc. for captured groups.',
+            placeholder: 'Example: ITEM- or $1-CODE'
+          },
+          {
+            fieldtype: 'Section Break',
+            fieldname: 'preview_section',
+            label: 'Preview'
+          },
+          {
+            fieldtype: 'HTML',
+            fieldname: 'preview_table',
+            options: '<div id="format-preview-table"></div>'
+          },
+          {
+            fieldtype: 'Column Break',
+            fieldname: 'col_break'
+          },
+          {
+            fieldtype: 'HTML',
+            fieldname: 'action_buttons',
+            options: `
+              <div class="action-buttons d-flex flex-column gap-2 mb-3">
+                <button class="btn btn-primary mb-2" onclick="cur_format_dialog.events.preview_format()">
+                  Preview Changes
+                </button>
+                <button class="btn btn-success mb-2" onclick="cur_format_dialog.events.apply_format()">
+                  Apply Format
+                </button>
+                <button class="btn btn-default mb-2" onclick="cur_format_dialog.events.reset_format()">
+                  Reset
+                </button>
+              </div>
+            `
+          }
+        ]
+      });
+
+      // Store reference to main dialog
+      formatDialog.mainDialog = d;
+      formatDialog.originalItems = JSON.parse(JSON.stringify(items));
+
+      // Add event handlers for format dialog
+      formatDialog.events = {
+        preview_format: function() {
+          const findPattern = formatDialog.get_value('find_pattern');
+          const replacePattern = formatDialog.get_value('replace_pattern');
+          
+          if (!findPattern) {
+            frappe.show_alert({
+              message: 'Please enter a pattern to find',
+              indicator: 'red'
+            });
+            return;
+          }
+
+          try {
+            const regex = new RegExp(findPattern, 'g');
+            const previewItems = formatDialog.originalItems.map(item => {
+              const newItemCode = item.itemCode.replace(regex, replacePattern || '');
+              return {
+                original: item.itemCode,
+                formatted: newItemCode,
+                changed: item.itemCode !== newItemCode
+              };
+            });
+
+            // Generate preview table
+            let previewHtml = `
+              <table class="table table-bordered table-sm">
+                <thead>
+                  <tr>
+                    <th>Original Item Code</th>
+                    <th>Formatted Item Code</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+            `;
+
+            previewItems.forEach(item => {
+              const statusClass = item.changed ? 'text-success' : 'text-muted';
+              const statusText = item.changed ? 'Changed' : 'No Change';
+              previewHtml += `
+                <tr>
+                  <td>${item.original}</td>
+                  <td>${item.formatted}</td>
+                  <td class="${statusClass}">${statusText}</td>
+                </tr>
+              `;
+            });
+
+            previewHtml += '</tbody></table>';
+            
+            formatDialog.$wrapper.find('#format-preview-table').html(previewHtml);
+            
+            // Store preview data for apply function
+            formatDialog.previewData = previewItems;
+
+          } catch (error) {
+            frappe.show_alert({
+              message: 'Invalid regex pattern: ' + error.message,
+              indicator: 'red'
+            });
+          }
+        },
+
+        apply_format: function() {
+          if (!formatDialog.previewData) {
+            frappe.show_alert({
+              message: 'Please preview changes first',
+              indicator: 'red'
+            });
+            return;
+          }
+
+          // Apply changes to main dialog items
+          const items = formatDialog.mainDialog.fields_dict.items.grid.data;
+          let changesApplied = 0;
+
+          items.forEach((item, index) => {
+            const previewItem = formatDialog.previewData[index];
+            if (previewItem && previewItem.changed) {
+              item.itemCode = previewItem.formatted;
+              changesApplied++;
+            }
+          });
+
+          // Refresh the grid
+          formatDialog.mainDialog.fields_dict.items.grid.refresh();
+          
+          // Show success message
+          frappe.show_alert({
+            message: `Applied format to ${changesApplied} item codes`,
+            indicator: 'green'
+          });
+
+          // Close format dialog
+          formatDialog.hide();
+        },
+
+        reset_format: function() {
+          formatDialog.set_value('find_pattern', '');
+          formatDialog.set_value('replace_pattern', '');
+          formatDialog.$wrapper.find('#format-preview-table').html('');
+          formatDialog.previewData = null;
+        }
+      };
+
+      // Set global reference for onclick handlers
+      window.cur_format_dialog = formatDialog;
+
+      formatDialog.show();
     };
     
     
