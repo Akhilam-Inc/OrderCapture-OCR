@@ -90,7 +90,11 @@ def _process_bb_order(df: pd.DataFrame) -> dict:
 def _process_flipkart_order(df: pd.DataFrame) -> dict:
     """Process FlipKart vendor purchase order"""
     po_number = df.iloc[0, 1]
-    po_date = parse_date(df.iloc[0, 24], df.iloc[0, 25])
+    # Version 1
+    #po_date = parse_date(df.iloc[0, 23], df.iloc[0, 24])
+
+    # Version 2
+    po_date = parse_date(df.iloc[0, 23], df.iloc[0, 24])
     po_expiry = parse_date(df.iloc[0, 19], df.iloc[0, 20])
 
     customer_address = df.iloc[3, 2]
