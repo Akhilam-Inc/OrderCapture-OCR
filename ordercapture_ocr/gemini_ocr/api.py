@@ -1,6 +1,6 @@
 from google import genai
 from pydantic import BaseModel, Field, create_model
-from typing import List, Optional, Dict, Any, get_type_hints
+from typing import List, Optional, get_type_hints
 import frappe
 import os
 import json
@@ -202,7 +202,7 @@ def extract_structured_data(file_path, customer=None, model: BaseModel = Order):
             config={'display_name': file_path.split('/')[-1].split('.')[0]})
         
         # Generate a structured response using the Gemini API
-        prompt = f"You are an assistant that extracts purchase order details. We are supplier with name GO DESI MANDI PVT LTD. In purchase Order our details will be titled as vendor details so make sure not to extract address from that section. IMPORTANT: Extract all data COMPLETELY and ACCURATELY. Pay special attention to information that may span across multiple lines. Capture full text of descriptions, addresses, and notes. Ensure you collect all items and details exactly as they appear in the document, even if formatted unusually or split across different sections."
+        prompt = "You are an assistant that extracts purchase order details. We are supplier with name GO DESI MANDI PVT LTD. In purchase Order our details will be titled as vendor details so make sure not to extract address from that section. IMPORTANT: Extract all data COMPLETELY and ACCURATELY. Pay special attention to information that may span across multiple lines. Capture full text of descriptions, addresses, and notes. Ensure you collect all items and details exactly as they appear in the document, even if formatted unusually or split across different sections."
         
         # Add customer-specific instructions if customer is provided
         if customer:

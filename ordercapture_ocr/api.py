@@ -8,6 +8,7 @@ import pandas as pd
 from frappe.utils import cstr
 from re import sub
 import json
+import PyPDF2
 
 
 from erpnext.stock.get_item_details import get_item_details as original_get_item_details
@@ -127,7 +128,7 @@ def _extract_item_details(df: pd.DataFrame, start_row: int, end_row: int) -> pd.
 def _process_bb_items(item_details: pd.DataFrame) -> list:
     """Process BB vendor items"""
     items = []
-    for _, row in item_details.iterrows():
+    for row in item_details.iterrows():
         items.append({
             'itemCode': row['SKU Code'],
             'itemName': row['Description'],
@@ -142,7 +143,7 @@ def _process_bb_items(item_details: pd.DataFrame) -> list:
 def _process_flipkart_items(item_details: pd.DataFrame) -> list:
     """Process FlipKart vendor items"""
     items = []
-    for _, row in item_details.iterrows():
+    for row in item_details.iterrows():
         rate = convert_string_with_inr(row['Supplier Price'])
         gst = convert_string_with_inr(row['Tax Amount'])/row['Quantity']
         
@@ -166,7 +167,6 @@ def process_file():
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 
     file = frappe.request.files.get('file')
-    file_type = frappe.form_dict.file_type
 
     if not file:
         frappe.throw(_("No file uploaded"))

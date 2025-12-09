@@ -1,9 +1,6 @@
 import frappe
 from frappe import _
-from frappe.utils import (getdate, today, formatdate, cstr)
-from erpnext.accounts.party import get_party_details
-import json
-from datetime import datetime
+from frappe.utils import (cstr)
 
 # response =  {
 #     "Customer": {
@@ -164,7 +161,7 @@ def create_sales_order(response):
 
         return sales_order.name
 
-    except Exception as e:
+    except Exception:
         frappe.log_error(frappe.get_traceback(), "Error in create sales order from response")
         frappe.msgprint("Error in creating sales order")
 

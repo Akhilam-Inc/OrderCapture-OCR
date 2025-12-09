@@ -20,5 +20,5 @@ def pdf_tables_to_json(pdf_path):
                     tables_data[f"page_{page_number}"] = page_tables
 
         return json.dumps(tables_data, indent=4)
-    except Exception as e:
+    except Exception:
         frappe.log_error(title="Error in pdf_tables_to_json", message=frappe.get_traceback())
