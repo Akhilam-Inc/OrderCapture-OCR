@@ -30,7 +30,7 @@ app_include_js = [
     "/assets/ordercapture_ocr/ordercapture_ocr/components/sales_order_handler.js",
     "/assets/ordercapture_ocr/ordercapture_ocr/components/navigation_handler.js",
     "/assets/ordercapture_ocr/ordercapture_ocr/components/save_handler.js",
-    "/assets/ordercapture_ocr/ordercapture_ocr/components/process_files.js"
+    "/assets/ordercapture_ocr/ordercapture_ocr/components/process_files.js",
 ]
 
 # Includes in <head>
@@ -253,4 +253,3 @@ app_include_js = [
 # default_log_clearing_doctypes = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
-
