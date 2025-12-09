@@ -18,7 +18,7 @@ ordercapture_ocr.components.Dashboard = {
 			  </div>
 			  <div class="col-md-4 d-flex justify-content-end">
 				<div class="widget">
-				
+
 				  <div class="widget-head d-flex justify-content-end mb-3">
 					<div v-if="frappeVersion >= 15">
 						<button class="btn btn-primary" @click="initializeV15Uploader">
@@ -39,12 +39,12 @@ ordercapture_ocr.components.Dashboard = {
 				</div>
 			  </div>
 			</div>
-	
+
 			<!-- Upload Section -->
 			<div class="row mt-4">
 			  <hr class="w-100">
 			</div>
-	
+
 			<!-- Recent Orders Table -->
 			<div class="row mt-4 pb-4 border">
 			  <div class="col-md-12">
@@ -75,7 +75,7 @@ ordercapture_ocr.components.Dashboard = {
 						  </td>
 						  <td>{{ order.id }}</td>
 						  <td>
-						  	<button 
+						  	<button
 								v-if="order.sales"
 								@click="openSalesOrder(order.sales)"
 								class="btn btn-link p-0 text-primary link-underline-primary"
@@ -111,7 +111,7 @@ ordercapture_ocr.components.Dashboard = {
 				  </div>
 				</div>
 			  </div>
-			  
+
 			  <div class="col-12">
 				<div class="col-md-12 d-flex justify-content-end flex-row gap-2">
 					<button @click="showProcessDialog" class="btn btn-primary mr-2">
@@ -128,7 +128,7 @@ ordercapture_ocr.components.Dashboard = {
 			</div>
 			</div>
 
-			
+
 		  </div>
     `,
 
@@ -151,9 +151,9 @@ ordercapture_ocr.components.Dashboard = {
       template: `
                 <div class="file-uploader-container">
                     <div class="file-uploader">
-                        <input 
-                            type="file" 
-                            @change="onFileChange" 
+                        <input
+                            type="file"
+                            @change="onFileChange"
                             accept=".pdf,.csv,.xlsx,.xls"
                             class="form-control"
                             multiple
