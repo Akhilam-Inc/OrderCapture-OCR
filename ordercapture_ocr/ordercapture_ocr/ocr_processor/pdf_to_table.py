@@ -1,6 +1,8 @@
-import pdfplumber
 import json
+
 import frappe
+import pdfplumber
+
 
 def pdf_tables_to_json(pdf_path):
     tables_data = {}
@@ -9,16 +11,18 @@ def pdf_tables_to_json(pdf_path):
             for page_number, page in enumerate(pdf.pages, start=1):
                 # Extract all tables on the page
                 tables = page.extract_tables()
-                
+
                 # Store each table in the dictionary
                 page_tables = []
                 for table in tables:
                     # Each table is a list of lists (rows and columns)
                     page_tables.append(table)
-                
+
                 if page_tables:
                     tables_data[f"page_{page_number}"] = page_tables
 
         return json.dumps(tables_data, indent=4)
     except Exception:
-        frappe.log_error(title="Error in pdf_tables_to_json", message=frappe.get_traceback())
+        frappe.log_error(
+            title="Error in pdf_tables_to_json", message=frappe.get_traceback()
+        )
