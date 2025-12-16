@@ -8,10 +8,10 @@ import frappe
 def _sanitize_cmap_path():
     """
     Security measure to prevent pdfminer-six CMap pickle deserialization vulnerability.
-    
+
     GHSA-f83h-ghpp-7wcc: pdfminer-six uses unsafe pickle deserialization for CMap files.
     This function ensures CMAP_PATH is not set to user-writable directories.
-    
+
     If CMAP_PATH is set, we restrict it to system directories only to prevent
     privilege escalation attacks via malicious pickle files.
     """
@@ -20,11 +20,11 @@ def _sanitize_cmap_path():
         # Check if any directory in CMAP_PATH is world-writable or user-writable
         paths = cmap_path.split(os.pathsep)
         safe_paths = []
-        
+
         for path in paths:
             if not path:
                 continue
-                
+
             try:
                 # Check if directory exists and get its permissions
                 if os.path.isdir(path):
@@ -33,21 +33,21 @@ def _sanitize_cmap_path():
                     # or if it's in a potentially unsafe location like /tmp
                     is_world_writable = bool(path_stat.st_mode & stat.S_IWOTH)
                     is_in_tmp = path.startswith("/tmp") or path.startswith("/var/tmp")
-                    
+
                     if is_world_writable or is_in_tmp:
                         frappe.log_error(
                             title="Security Warning: Unsafe CMAP_PATH detected",
                             message=f"CMAP_PATH contains potentially unsafe directory: {path}. "
                             "This could allow privilege escalation via pdfminer-six CMap pickle deserialization. "
-                            "Removing from CMAP_PATH."
+                            "Removing from CMAP_PATH.",
                         )
                         continue
-                
+
                 safe_paths.append(path)
             except (OSError, ValueError):
                 # If we can't check the path, exclude it for safety
                 continue
-        
+
         # Only set CMAP_PATH if we have safe paths, otherwise unset it
         if safe_paths:
             os.environ["CMAP_PATH"] = os.pathsep.join(safe_paths)
@@ -67,14 +67,14 @@ import pdfplumber
 def pdf_tables_to_json(pdf_path):
     """
     Extract tables from PDF file and return as JSON.
-    
+
     Security Note: This function uses pdfplumber which depends on pdfminer-six.
     A security wrapper is applied to prevent CMap pickle deserialization attacks
     (GHSA-f83h-ghpp-7wcc) by sanitizing CMAP_PATH.
     """
     # Apply security measure before using pdfplumber
     _sanitize_cmap_path()
-    
+
     tables_data = {}
     try:
         with pdfplumber.open(pdf_path) as pdf:
