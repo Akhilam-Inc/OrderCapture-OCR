@@ -61,7 +61,7 @@ def _sanitize_cmap_path():
 # (GHSA-f83h-ghpp-7wcc vulnerability mitigation)
 _sanitize_cmap_path()
 
-import pdfplumber
+import pdfplumber  # noqa: E402
 
 
 def pdf_tables_to_json(pdf_path):
