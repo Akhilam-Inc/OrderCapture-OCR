@@ -1,3 +1,5 @@
+/* global ordercapture_ocr, fetch_customer_details, fetch_customer_address, method, initial_table_data */
+
 frappe.provide("ordercapture_ocr.process_dialog");
 
 ordercapture_ocr.process_dialog = {
