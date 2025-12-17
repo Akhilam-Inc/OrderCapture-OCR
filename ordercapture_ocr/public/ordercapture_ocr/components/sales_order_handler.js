@@ -1,3 +1,5 @@
+/* global ordercapture_ocr, sales_order_values */
+
 frappe.provide("ordercapture_ocr.components.sales_order_handler");
 
 ordercapture_ocr.components.sales_order_handler = {

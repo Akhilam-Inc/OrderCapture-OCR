@@ -37,7 +37,12 @@
         ],
     },
     "root": true,
+    "ignorePatterns": [
+        "**/public/js/vue.js"
+    ],
     "globals": {
+        "define": true,
+        "WXEnvironment": true,
         "frappe": true,
         "Vue": true,
         "SetVueGlobals": true,

@@ -11,6 +11,10 @@ dependencies = [
     # "frappe~=15.0.0" # Installed and managed by bench.
     "openai",
     "pdfplumber",
+    "pdfminer-six",  # Direct dependency to track security updates
+    # Security Note: pdfminer-six has vulnerability GHSA-f83h-ghpp-7wcc
+    # (unsafe pickle deserialization in CMap loading). Code includes
+    # security wrapper to mitigate risk. Monitor for updates.
     "pandas",
     "openpyxl>=3.1.0",
     "google-genai"

@@ -1,3 +1,5 @@
+/* global ordercapture_ocr, fetch_customer_details */
+
 frappe.provide("ordercapture_ocr.components.document_loader");
 
 ordercapture_ocr.components.document_loader = {

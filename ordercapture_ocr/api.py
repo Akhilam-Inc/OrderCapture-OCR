@@ -146,7 +146,7 @@ def _extract_item_details(
 def _process_bb_items(item_details: pd.DataFrame) -> list:
     """Process BB vendor items"""
     items = []
-    for row in item_details.iterrows():
+    for index, row in item_details.iterrows():
         items.append(
             {
                 "itemCode": row["SKU Code"],
@@ -164,7 +164,7 @@ def _process_bb_items(item_details: pd.DataFrame) -> list:
 def _process_flipkart_items(item_details: pd.DataFrame) -> list:
     """Process FlipKart vendor items"""
     items = []
-    for row in item_details.iterrows():
+    for index, row in item_details.iterrows():
         rate = convert_string_with_inr(row["Supplier Price"])
         gst = convert_string_with_inr(row["Tax Amount"]) / row["Quantity"]
 

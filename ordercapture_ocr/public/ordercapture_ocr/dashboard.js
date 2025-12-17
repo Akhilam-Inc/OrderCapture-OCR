@@ -1,3 +1,5 @@
+/* global ordercapture_ocr */
+
 frappe.provide("ordercapture_ocr.components");
 frappe.require(
   "/assets/ordercapture_ocr/ordercapture_ocr/components/process_files.js"
