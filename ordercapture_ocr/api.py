@@ -169,13 +169,39 @@ def _extract_item_details(
 
 
 def _get_column_value_safe(row: pd.Series, df: pd.DataFrame, primary: str, fallback: str) -> any:
-    """Get column value with fallback, throws if neither exists"""
+    """Get column value with flexible matching (case-insensitive, whitespace-tolerant)"""
+    # Try exact match first
     if primary in df.columns:
         return row[primary]
-    elif fallback in df.columns:
+    if fallback in df.columns:
         return row[fallback]
-    else:
-        frappe.throw(f"Neither '{primary}' nor '{fallback}' column found")
+    
+    # Try case-insensitive match
+    primary_lower = primary.lower().strip()
+    fallback_lower = fallback.lower().strip()
+    for col in df.columns:
+        col_str = str(col).strip()
+        if col_str.lower() == primary_lower:
+            return row[col]
+        if col_str.lower() == fallback_lower:
+            return row[col]
+    
+    # Try match with whitespace removed
+    primary_no_space = primary.replace(" ", "").lower()
+    fallback_no_space = fallback.replace(" ", "").lower()
+    for col in df.columns:
+        col_str = str(col).replace(" ", "").lower()
+        if col_str == primary_no_space:
+            return row[col]
+        if col_str == fallback_no_space:
+            return row[col]
+    
+    # Column not found - provide helpful error message
+    available_columns = [str(col) for col in df.columns]
+    frappe.throw(
+        f"Neither '{primary}' nor '{fallback}' column found. "
+        f"Available columns: {', '.join(available_columns)}"
+    )
 
 
 def _process_bb_items(item_details: pd.DataFrame) -> list:
@@ -189,8 +215,8 @@ def _process_bb_items(item_details: pd.DataFrame) -> list:
         landing_cost = _get_column_value_safe(row, item_details, "Landing Cost", "LandingCost")
         total_value = _get_column_value_safe(row, item_details, "Total Value", "TotalValue")
         
-        quantity = row["Quantity"]
-        description = row["Description"]
+        quantity = _get_column_value_safe(row, item_details, "Quantity", "Qty")
+        description = _get_column_value_safe(row, item_details, "Description", "Desc")
         
         items.append(
             {
