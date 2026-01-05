@@ -183,7 +183,7 @@ def _process_bb_items(item_details: pd.DataFrame) -> list:
     items = []
     for index, row in item_details.iterrows():
         # Use helper function to get column values with fallback
-        sku_code = _get_column_value_safe(row, item_details, "SKU Code", "SkuCode")
+        sku_code = row["SkuCode"]
         basic_cost = _get_column_value_safe(row, item_details, "Basic Cost", "BasicCost")
         gst_amount = _get_column_value_safe(row, item_details, "GST Amount", "GstAmount")
         landing_cost = _get_column_value_safe(row, item_details, "Landing Cost", "LandingCost")
