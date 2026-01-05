@@ -168,19 +168,39 @@ def _extract_item_details(
     return item_details[1:]
 
 
+def _get_column_value_safe(row: pd.Series, df: pd.DataFrame, primary: str, fallback: str) -> any:
+    """Get column value with fallback, throws if neither exists"""
+    if primary in df.columns:
+        return row[primary]
+    elif fallback in df.columns:
+        return row[fallback]
+    else:
+        frappe.throw(f"Neither '{primary}' nor '{fallback}' column found")
+
+
 def _process_bb_items(item_details: pd.DataFrame) -> list:
     """Process BB vendor items"""
     items = []
     for index, row in item_details.iterrows():
+        # Use helper function to get column values with fallback
+        sku_code = _get_column_value_safe(row, item_details, "SKU Code", "SkuCode")
+        basic_cost = _get_column_value_safe(row, item_details, "Basic Cost", "BasicCost")
+        gst_amount = _get_column_value_safe(row, item_details, "GST Amount", "GstAmount")
+        landing_cost = _get_column_value_safe(row, item_details, "Landing Cost", "LandingCost")
+        total_value = _get_column_value_safe(row, item_details, "Total Value", "TotalValue")
+        
+        quantity = row["Quantity"]
+        description = row["Description"]
+        
         items.append(
             {
-                "itemCode": row["SKU Code"] or row["SkuCode"],
-                "itemName": row["Description"],
-                "qty": row["Quantity"],
-                "rate": row["Basic Cost"] or row["BasicCost"],
-                "gst": row["GST Amount"] or row["GstAmount"] / row["Quantity"],
-                "landing_rate": row["Landing Cost"] or row["LandingCost"],
-                "totalAmount": row["Total Value"] or row["TotalValue"],
+                "itemCode": sku_code,
+                "itemName": description,
+                "qty": quantity,
+                "rate": basic_cost,
+                "gst": gst_amount / quantity if quantity != 0 else 0,
+                "landing_rate": landing_cost,
+                "totalAmount": total_value,
             }
         )
     return items
