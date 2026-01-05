@@ -85,8 +85,22 @@ def _process_bb_order(df: pd.DataFrame) -> dict:
     customer_address1 = df.iloc[6, 7]
     customer_name = df.iloc[0, 0]
 
-    start_row = df[df.iloc[:, 0].str.contains("S.No", na=False)].index[0]
-    end_row = df[df.iloc[:, 3].str.contains("Total", na=False)].index[0]
+    # Find start row - try "S.No" first, then "SLNO"
+    start_row_matches = df[df.iloc[:, 0].str.contains("S.No", na=False, case=False)]
+    if len(start_row_matches) == 0:
+        start_row_matches = df[df.iloc[:, 0].str.contains("SLNO", na=False, case=False)]
+    
+    if len(start_row_matches) == 0:
+        frappe.throw("Could not find 'S.No' or 'SLNO' column header in the purchase order")
+    
+    start_row = start_row_matches.index[0]
+    
+    # Find end row
+    end_row_matches = df[df.iloc[:, 3].str.contains("Total", na=False, case=False)]
+    if len(end_row_matches) == 0:
+        frappe.throw("Could not find 'Total' row in the purchase order")
+    
+    end_row = end_row_matches.index[0]
 
     item_details = _extract_item_details(df, start_row, end_row)
     items = _process_bb_items(item_details)
@@ -116,8 +130,19 @@ def _process_flipkart_order(df: pd.DataFrame) -> dict:
     customer_address = df.iloc[3, 2]
     customer_name = df.iloc[1, 1]
 
-    start_row = df[df.iloc[:, 0].str.contains("S. no", na=False)].index[0]
-    end_row = df[df.iloc[:, 3].str.contains("Total", na=False)].index[0]
+    # Find start row
+    start_row_matches = df[df.iloc[:, 0].str.contains("S. no", na=False, case=False)]
+    if len(start_row_matches) == 0:
+        frappe.throw("Could not find 'S. no' column header in the purchase order")
+    
+    start_row = start_row_matches.index[0]
+    
+    # Find end row
+    end_row_matches = df[df.iloc[:, 3].str.contains("Total", na=False, case=False)]
+    if len(end_row_matches) == 0:
+        frappe.throw("Could not find 'Total' row in the purchase order")
+    
+    end_row = end_row_matches.index[0]
 
     item_details = _extract_item_details(df, start_row, end_row)
     items = _process_flipkart_items(item_details)
