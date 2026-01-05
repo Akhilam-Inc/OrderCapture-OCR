@@ -85,20 +85,37 @@ def _process_bb_order(df: pd.DataFrame) -> dict:
     customer_address1 = df.iloc[6, 7]
     customer_name = df.iloc[0, 0]
 
-    # Find start row - try "S.No" first, then "SLNO"
-    start_row_matches = df[df.iloc[:, 0].str.contains("S.No", na=False, case=False)]
-    if len(start_row_matches) == 0:
-        start_row_matches = df[df.iloc[:, 0].str.contains("SLNO", na=False, case=False)]
+    # Find start row - try multiple patterns with OR conditions
+    # Search in first column for serial number patterns
+    start_row_matches = df[
+        df.iloc[:, 0].str.contains("S.No", na=False, case=False) |
+        df.iloc[:, 0].str.contains("SLNO", na=False, case=False) |
+        df.iloc[:, 0].str.contains("S No", na=False, case=False) |
+        df.iloc[:, 0].str.contains("Sno", na=False, case=False) |
+        df.iloc[:, 0].str.contains("Serial", na=False, case=False)
+    ]
     
     if len(start_row_matches) == 0:
-        frappe.throw("Could not find 'S.No' or 'SLNO' column header in the purchase order")
+        frappe.throw("Could not find serial number column header in the purchase order")
     
     start_row = start_row_matches.index[0]
     
-    # Find end row
-    end_row_matches = df[df.iloc[:, 3].str.contains("Total", na=False, case=False)]
+    # Adjust if picking 2 rows above - check if row 2 positions down has actual data headers
+    if start_row + 2 < len(df):
+        row_check = str(df.iloc[start_row + 2, 0]).lower() if pd.notna(df.iloc[start_row + 2, 0]) else ""
+        # If row 2 down contains actual column headers, use that row instead
+        if any(term in row_check for term in ["sku", "description", "item"]):
+            start_row = start_row + 2
+    
+    # Find end row - try multiple patterns
+    end_row_matches = df[
+        df.iloc[:, 3].str.contains("Total", na=False, case=False) |
+        df.iloc[:, 3].str.contains("TotalValue", na=False, case=False) |
+        df.iloc[:, 3].str.contains("Total Value", na=False, case=False)
+    ]
+    
     if len(end_row_matches) == 0:
-        frappe.throw("Could not find 'Total' row in the purchase order")
+        frappe.throw("Could not find 'Total', 'TotalValue', or 'Total Value' row in the purchase order")
     
     end_row = end_row_matches.index[0]
 
