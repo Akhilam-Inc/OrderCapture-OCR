@@ -168,21 +168,84 @@ def _extract_item_details(
     return item_details[1:]
 
 
+def _get_column_value(row: pd.Series, column_name: str, df: pd.DataFrame = None) -> any:
+    """
+    Get column value with flexible matching (case-insensitive, whitespace-tolerant).
+    
+    Args:
+        row: Pandas Series (row from dataframe)
+        column_name: Expected column name
+        df: Optional dataframe to get available columns for error messages
+    
+    Returns:
+        The value from the matching column
+    
+    Raises:
+        frappe.ValidationError: If column is not found
+    """
+    # Try exact match first
+    if column_name in row.index:
+        return row[column_name]
+    
+    # Try case-insensitive match
+    for col in row.index:
+        if str(col).strip().lower() == column_name.strip().lower():
+            return row[col]
+    
+    # Try match with whitespace removed
+    column_name_normalized = column_name.replace(" ", "").lower()
+    for col in row.index:
+        if str(col).replace(" ", "").lower() == column_name_normalized:
+            return row[col]
+    
+    # Column not found - provide helpful error message
+    available_columns = list(row.index)
+    if df is not None:
+        available_columns = list(df.columns)
+    
+    frappe.throw(
+        f"Column '{column_name}' not found. Available columns: {', '.join(map(str, available_columns))}"
+    )
+
+
 def _process_bb_items(item_details: pd.DataFrame) -> list:
     """Process BB vendor items"""
     items = []
     for index, row in item_details.iterrows():
-        items.append(
-            {
-                "itemCode": row["SKU Code"],
-                "itemName": row["Description"],
-                "qty": row["Quantity"],
-                "rate": row["Basic Cost"],
-                "gst": row["GST Amount"] / row["Quantity"],
-                "landing_rate": row["Landing Cost"],
-                "totalAmount": row["Total Value"],
-            }
-        )
+        try:
+            sku_code = _get_column_value(row, "SKU Code", item_details)
+            description = _get_column_value(row, "Description", item_details)
+            quantity = _get_column_value(row, "Quantity", item_details)
+            basic_cost = _get_column_value(row, "Basic Cost", item_details)
+            gst_amount = _get_column_value(row, "GST Amount", item_details)
+            landing_cost = _get_column_value(row, "Landing Cost", item_details)
+            total_value = _get_column_value(row, "Total Value", item_details)
+            
+            # Calculate GST per unit
+            gst_per_unit = float(gst_amount) / float(quantity) if float(quantity) != 0 else 0
+            
+            items.append(
+                {
+                    "itemCode": str(sku_code),
+                    "itemName": str(description),
+                    "qty": float(quantity),
+                    "rate": float(basic_cost),
+                    "gst": gst_per_unit,
+                    "landing_rate": float(landing_cost),
+                    "totalAmount": float(total_value),
+                }
+            )
+        except Exception as e:
+            frappe.log_error(
+                f"Error processing BB item at row {index}: {str(e)}",
+                "BB Item Processing Error"
+            )
+            # Continue processing other items instead of failing completely
+            continue
+    
+    if not items:
+        frappe.throw("No items could be processed from the purchase order")
+    
     return items
 
 
@@ -190,20 +253,39 @@ def _process_flipkart_items(item_details: pd.DataFrame) -> list:
     """Process FlipKart vendor items"""
     items = []
     for index, row in item_details.iterrows():
-        rate = convert_string_with_inr(row["Supplier Price"])
-        gst = convert_string_with_inr(row["Tax Amount"]) / row["Quantity"]
+        try:
+            supplier_price = _get_column_value(row, "Supplier Price", item_details)
+            tax_amount = _get_column_value(row, "Tax Amount", item_details)
+            quantity = _get_column_value(row, "Quantity", item_details)
+            fsn_isbn = _get_column_value(row, "FSN/ISBN13", item_details)
+            title = _get_column_value(row, "Title", item_details)
+            total_amount = _get_column_value(row, "Total Amount", item_details)
+            
+            rate = convert_string_with_inr(str(supplier_price))
+            gst = convert_string_with_inr(str(tax_amount)) / float(quantity) if float(quantity) != 0 else 0
 
-        items.append(
-            {
-                "itemCode": row["FSN/ISBN13"],
-                "itemName": row["Title"],
-                "qty": row["Quantity"],
-                "rate": rate,
-                "gst": gst,
-                "landing_rate": rate + gst,
-                "totalAmount": row["Total Amount"],
-            }
-        )
+            items.append(
+                {
+                    "itemCode": str(fsn_isbn),
+                    "itemName": str(title),
+                    "qty": float(quantity),
+                    "rate": rate,
+                    "gst": gst,
+                    "landing_rate": rate + gst,
+                    "totalAmount": float(total_amount),
+                }
+            )
+        except Exception as e:
+            frappe.log_error(
+                f"Error processing FlipKart item at row {index}: {str(e)}",
+                "FlipKart Item Processing Error"
+            )
+            # Continue processing other items instead of failing completely
+            continue
+    
+    if not items:
+        frappe.throw("No items could be processed from the purchase order")
+    
     return items
 
 
