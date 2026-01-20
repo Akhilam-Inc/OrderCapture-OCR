@@ -125,6 +125,7 @@ def create_sales_order(response):
             response = frappe.parse_json(response)
 
         customer_name = response.get("Customer").get("customerName")
+        customer = response.get("Customer").get("customer")
         po_number = response.get("Customer").get("poNumber")
         po_date = response.get("Customer").get("poDate")
         customer_address = response.get("Customer").get("customerAddressLink")
@@ -240,4 +241,5 @@ def attach_file_to_doc(
 
     file_doc.save(ignore_permissions=True)
     return file_doc.name
+
 
