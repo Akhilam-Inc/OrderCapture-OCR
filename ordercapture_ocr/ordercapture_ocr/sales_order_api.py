@@ -147,7 +147,7 @@ def create_sales_order(response):
         sales_order = frappe.get_doc(
             {
                 "doctype": "Sales Order",
-                "customer": customer_name,
+                "customer": customer,
                 "customer_address": customer_address,
                 "shipping_address_name": customer_address,
                 "company": defaultCompany,
@@ -241,6 +241,7 @@ def attach_file_to_doc(
 
     file_doc.save(ignore_permissions=True)
     return file_doc.name
+
 
 
 
