@@ -137,7 +137,7 @@ def create_sales_order(response):
         customer_item_codes = get_customer_item_code(response)
 
         # Check if the customer exists
-        if not frappe.db.exists("Customer", customer_name):
+        if not frappe.db.exists("Customer", customer):
             print(f"Customer {customer_name} not found")
             frappe.throw("Customer not found")
 
@@ -241,5 +241,6 @@ def attach_file_to_doc(
 
     file_doc.save(ignore_permissions=True)
     return file_doc.name
+
 
 
