@@ -37,7 +37,7 @@ from frappe.utils import cstr
 
 def get_customer_item_code(response):
     try:
-        customer_name = response.get("Customer", {}).get("customerName")
+        customer_name = response.get("Customer", {}).get("customer")
         item_code_mapping = {}
         no_mapped_item_codes = []
         for item in response.get("orderDetails", []):
@@ -240,3 +240,4 @@ def attach_file_to_doc(
 
     file_doc.save(ignore_permissions=True)
     return file_doc.name
+
