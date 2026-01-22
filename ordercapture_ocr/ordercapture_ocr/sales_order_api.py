@@ -241,7 +241,3 @@ def attach_file_to_doc(
 
     file_doc.save(ignore_permissions=True)
     return file_doc.name
-
-
-
-

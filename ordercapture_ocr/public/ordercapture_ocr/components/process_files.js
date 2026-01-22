@@ -146,6 +146,9 @@ ordercapture_ocr.process_dialog = {
                 <button class="btn btn-primary w-50 mb-2 mr-2 format-item-code-btn" onclick="cur_dialog.events.show_format_dialog()">
                   Format Item Code
                 </button>
+                <button class="btn btn-primary w-50 mb-2 mr-2 map-item-code-btn" onclick="cur_dialog.events.show_map_item_dialog()">
+                  Map Item Code
+                </button>
             </div>
           `,
         },
@@ -1502,6 +1505,12 @@ ordercapture_ocr.process_dialog = {
       window.cur_format_dialog = formatDialog;
 
       formatDialog.show();
+    };
+
+    // Map Item Code Dialog
+    d.events.show_map_item_dialog = function () {
+      const customer = d.get_value("customer");
+      ordercapture_ocr.map_items.show_map_dialog(customer);
     };
 
     // Add this near the start of the file
