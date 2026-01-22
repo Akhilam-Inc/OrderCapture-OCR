@@ -30,6 +30,7 @@ app_include_js = [
     "/assets/ordercapture_ocr/ordercapture_ocr/components/sales_order_handler.js",
     "/assets/ordercapture_ocr/ordercapture_ocr/components/navigation_handler.js",
     "/assets/ordercapture_ocr/ordercapture_ocr/components/save_handler.js",
+    "/assets/ordercapture_ocr/ordercapture_ocr/components/map_items.js",
     "/assets/ordercapture_ocr/ordercapture_ocr/components/process_files.js",
 ]
 
