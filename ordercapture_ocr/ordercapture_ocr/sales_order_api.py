@@ -40,24 +40,40 @@ def get_customer_item_code(response):
         customer_name = response.get("Customer", {}).get("customer")
         item_code_mapping = {}
         no_mapped_item_codes = []
+        inactive_mapped_item_codes = []
         for item in response.get("orderDetails", []):
             customer_item_code = item.get("itemCode")
-            mapped_item_code = frappe.db.get_value(
+            # First check if mapping exists (regardless of active status)
+            mapping_data = frappe.db.get_value(
                 "Customer Item Code Mapping",
                 {"customer": customer_name, "customer_item_code": customer_item_code},
-                "item_code",
+                ["item_code", "active"],
+                as_dict=True,
             )
-            if mapped_item_code:
-                item_code_mapping[customer_item_code] = mapped_item_code
+            if mapping_data:
+                if mapping_data.active:
+                    item_code_mapping[customer_item_code] = mapping_data.item_code
+                else:
+                    inactive_mapped_item_codes.append(customer_item_code)
             else:
                 no_mapped_item_codes.append(customer_item_code)
 
+        error_messages = []
+        if inactive_mapped_item_codes:
+            error_messages.append(
+                _(
+                    "Item codes <b>{0}</b> have inactive mappings for customer <b>{1}</b>. Please activate the mappings in <a href='/app/customer-item-code-mapping'>Customer Item Code Mapping</a>"
+                ).format(", ".join(inactive_mapped_item_codes), customer_name)
+            )
         if no_mapped_item_codes:
-            frappe.throw(
+            error_messages.append(
                 _(
                     "Item codes <b>{0}</b> are not mapped for customer <b>{1}</b>. Please map the item codes in <a href='/app/customer-item-code-mapping'>Customer Item Code Mapping</a>"
                 ).format(", ".join(no_mapped_item_codes), customer_name)
             )
+        
+        if error_messages:
+            frappe.throw("<br>".join(error_messages))
         return item_code_mapping
     except Exception as e:
         print(f"Error in get_customer_item_code: {str(e)}")
@@ -110,7 +126,7 @@ def parse_iso_date(date_string):
 
 
 @frappe.whitelist()
-def create_sales_order(response):
+def create_sales_order(response, file_path=None, ocr_doc_name=None):
     source_warehouse = frappe.db.get_single_value(
         "Order Capture OCR Configuration", "source_warehouse_for_sales_order"
     )
@@ -143,6 +159,24 @@ def create_sales_order(response):
 
         defaultCompany = frappe.get_single("Global Defaults").default_company
 
+        # Get customer's party details first to get currency and price list
+        from erpnext.accounts.party import get_party_details
+        party_details = get_party_details(
+            party=customer,
+            party_type="Customer",
+            posting_date=frappe.utils.today(),
+            company=defaultCompany,
+            doctype="Sales Order",
+        )
+        price_list = party_details.get("selling_price_list") or "Standard Selling"
+        # Get company default currency as fallback
+        company_currency = frappe.get_cached_value("Company", defaultCompany, "default_currency")
+        currency = party_details.get("currency") or company_currency
+        # Ensure currency is not None
+        if not currency:
+            currency = company_currency or "USD"
+        price_list_currency = party_details.get("price_list_currency") or currency
+
         # Create Sales Order document
         sales_order = frappe.get_doc(
             {
@@ -155,6 +189,8 @@ def create_sales_order(response):
                 "set_warehouse": source_warehouse,
                 "po_no": po_number,
                 "po_date": po_date,
+                "currency": currency,
+                "price_list": price_list,
                 "items": [],
             }
         )
@@ -163,31 +199,128 @@ def create_sales_order(response):
             po_expiry_date = response.get("Customer").get("poExpiryDate")
             if po_expiry_date:
                 sales_order.custom_po_expiry_date = parse_iso_date(po_expiry_date)
+        
+        # Track plRate mismatches
+        plrate_mismatches = []
 
         # Add items to the Sales Order
         for item in response.get("orderDetails", []):
             item_code = item.get("itemCode")
+            mapped_item_code = customer_item_codes[item_code]
+            document_plrate = item.get("plRate")
 
-            sales_order.append(
-                "items",
-                {
-                    "item_code": customer_item_codes[item_code],
-                    "qty": item.get("qty"),
-                    "rate": item.get("rate"),
-                    "warehouse": source_warehouse,
-                },
-            )
+            # Check for plRate mismatch if document has plRate
+            if document_plrate is not None and document_plrate > 0:
+                try:
+                    from erpnext.stock.get_item_details import get_item_details
+                    system_item_details = get_item_details(
+                        {
+                            "item_code": mapped_item_code,
+                            "price_list": price_list,
+                            "customer": customer,
+                            "company": defaultCompany,
+                            "doctype": "Sales Order",
+                            "currency": currency,
+                            "price_list_currency": price_list_currency,
+                            "conversion_rate": 1,
+                        }
+                    )
+                    system_plrate = system_item_details.get("price_list_rate", 0) or 0
+                    
+                    # Compare document plRate with system plRate (allow small tolerance for floating point)
+                    if abs(float(document_plrate) - float(system_plrate)) > 0.01:
+                        plrate_mismatches.append({
+                            "item_code": mapped_item_code,
+                            "customer_item_code": item_code,
+                            "item_name": item.get("itemName"),
+                            "document_plrate": document_plrate,
+                            "system_plrate": system_plrate,
+                        })
+                except Exception as e:
+                    # If error getting system plRate, log it but continue
+                    frappe.log_error(
+                        f"Error getting price list rate for {mapped_item_code}: {str(e)}",
+                        "plRate Check Error"
+                    )
 
-        # party_details = get_party_details(party=sales_order.customer,party_type='Customer',posting_date=frappe.utils.today(),company=defaultCompany,doctype='Sales Order')
-        # sales_order.taxes_and_charges = party_details.get("taxes_and_charges")
-        # sales_order.set("taxes", party_details.get("taxes"))
-        sales_order.set_taxes()
+            # Prepare item data
+            item_data = {
+                "item_code": mapped_item_code,
+                "qty": item.get("qty"),
+                "rate": item.get("rate"),
+                "warehouse": source_warehouse,
+            }
+            
+            # Set price_list_rate if plRate is available and > 0
+            if document_plrate is not None and document_plrate > 0:
+                item_data["price_list_rate"] = document_plrate
+            
+            sales_order.append("items", item_data)
 
+        # Set missing values first (this sets currency, exchange rate, etc.)
         sales_order.set_missing_values()
+        
+        # Set taxes after missing values are set
+        sales_order.set_taxes()
+        
+        # Calculate taxes and totals
         sales_order.calculate_taxes_and_totals()
 
         sales_order.insert(ignore_permissions=True)
         frappe.db.commit()
+        
+        # Create OCR Error Log if plRate mismatches found
+        if plrate_mismatches:
+            try:
+                # Get File document name from file_path if provided
+                file_name = None
+                if file_path:
+                    # Try to find file by file_url first
+                    file_doc = frappe.db.get_value("File", {"file_url": file_path}, "name")
+                    if file_doc:
+                        file_name = file_doc
+                    else:
+                        # Try to find file by name if URL doesn't match
+                        file_name_from_path = file_path.split("/")[-1]
+                        file_doc = frappe.db.get_value("File", {"file_name": file_name_from_path}, "name")
+                        if file_doc:
+                            file_name = file_doc
+                        else:
+                            # If file not found, try to get from OCR Document Processor
+                            if ocr_doc_name:
+                                ocr_doc = frappe.db.get_value(
+                                    "OCR Document Processor",
+                                    ocr_doc_name,
+                                    "file_path"
+                                )
+                                if ocr_doc:
+                                    file_doc = frappe.db.get_value("File", {"file_url": ocr_doc}, "name")
+                                    if file_doc:
+                                        file_name = file_doc
+                
+                error_log = frappe.get_doc({
+                    "doctype": "OCR Error Log",
+                    "reference_doctype": "Sales Order",
+                    "reference_docname": sales_order.name,
+                    "file": file_name,
+                    "error": frappe.as_json({
+                        "type": "plRate Mismatch",
+                        "message": "Price List Rate from document does not match system price list rate",
+                        "mismatches": plrate_mismatches
+                    }, indent=2)
+                })
+                error_log.insert(ignore_permissions=True)
+                frappe.db.commit()
+                frappe.log_error(
+                    f"OCR Error Log created successfully: {error_log.name} for Sales Order: {sales_order.name}",
+                    "OCR Error Log Success"
+                )
+            except Exception as e:
+                frappe.log_error(
+                    f"Error creating OCR Error Log: {str(e)}\nTraceback: {frappe.get_traceback()}\nplRate mismatches: {len(plrate_mismatches)}, file_path: {file_path}",
+                    "OCR Error Log Creation Error"
+                )
+        
         frappe.msgprint(f"Sales Order {sales_order.name} created successfully")
 
         return sales_order.name

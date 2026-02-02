@@ -185,12 +185,13 @@ ordercapture_ocr.process_dialog = {
               columns: 1,
             },
             {
-              fieldname: "rate",
+              fieldname: "plRate",
               fieldtype: "Currency",
-              label: "Rate",
+              label: "MRP",
               in_list_view: 1,
               columns: 1,
             },
+            
             {
               fieldtype: "Column Break",
               fieldname: "col_5",
@@ -217,12 +218,13 @@ ordercapture_ocr.process_dialog = {
               columns: 2,
             },
             {
-              fieldname: "plRate",
+              fieldname: "rate",
               fieldtype: "Currency",
-              label: "Price List Rate",
+              label: "Rate",
               in_list_view: 1,
               columns: 1,
             },
+            
           ],
         },
         {
@@ -1108,6 +1110,7 @@ ordercapture_ocr.process_dialog = {
               rate: item.rate,
               gst: item.gst,
               totalAmount: item.totalAmount,
+              plRate: item.plRate || null,
             })),
             totals: {
               totalItemQty: d.get_value("total_item_qty"),
@@ -1120,6 +1123,8 @@ ordercapture_ocr.process_dialog = {
             freeze: true,
             args: {
               response: sales_order_values,
+              file_path: d.get_value("file_path") ? d.get_value("file_path").split(": ")[1] : null,
+              ocr_doc_name: d.get_value("current_id"),
             },
             callback: (r) => {
               const sales_order_name = r.message;
@@ -1216,9 +1221,10 @@ ordercapture_ocr.process_dialog = {
             // Step 2: Get price list rates for all items
             let hasErrors = false;
             const itemsWithoutMapping = [];
+            const itemsWithInactiveMapping = [];
 
             items.forEach((item, idx) => {
-              // First check if there's a mapping in Customer Item Code Mapping
+              // First check if there's an active mapping in Customer Item Code Mapping
               frappe.call({
                 method: "frappe.client.get_list",
                 args: {
@@ -1226,79 +1232,139 @@ ordercapture_ocr.process_dialog = {
                   filters: [
                     ["customer", "=", customer],
                     ["customer_item_code", "=", item.itemCode],
+                    ["active", "=", 1],
                   ],
                   fields: ["customer_item_code", "item_code"],
                 },
                 callback: (mapping_result) => {
-                  // If mapping doesn't exist, add to error list
+                  // If active mapping doesn't exist, check if inactive mapping exists
                   if (
                     !mapping_result.message ||
                     mapping_result.message.length === 0 ||
                     !mapping_result.message[0].customer_item_code
                   ) {
-                    hasErrors = true;
-                    itemsWithoutMapping.push(item.itemCode);
-
-                    // Highlight the row with error
-                    d.fields_dict.items.grid.grid_rows[idx].row.addClass(
-                      "highlight-red"
-                    );
+                    // Check if inactive mapping exists
+                    frappe.call({
+                      method: "frappe.client.get_list",
+                      args: {
+                        doctype: "Customer Item Code Mapping",
+                        filters: [
+                          ["customer", "=", customer],
+                          ["customer_item_code", "=", item.itemCode],
+                          ["active", "=", 0],
+                        ],
+                        fields: ["name"],
+                      },
+                      callback: (inactive_mapping_result) => {
+                        if (
+                          inactive_mapping_result.message &&
+                          inactive_mapping_result.message.length > 0
+                        ) {
+                          // Inactive mapping exists
+                          hasErrors = true;
+                          itemsWithInactiveMapping.push(item.itemCode);
+                        } else {
+                          // No mapping exists at all
+                          hasErrors = true;
+                          itemsWithoutMapping.push(item.itemCode);
+                        }
+                        // Highlight the row with error
+                        d.fields_dict.items.grid.grid_rows[idx].row.addClass(
+                          "highlight-red"
+                        );
+                      },
+                    });
                     return;
                   }
 
-                  // Mapping exists, use the customer's item code
+                  // Active mapping exists, use the customer's item code
                   const item_code_to_use = mapping_result.message[0].item_code;
 
-                  // Now get item details with the customer's item code
-                  frappe.call({
-                    method: "erpnext.stock.get_item_details.get_item_details",
-                    args: {
+                  // Check if plRate (MRP) already exists from Excel document
+                  if (item.plRate && item.plRate > 0) {
+                    // Use MRP from Excel document
+                    // Highlight if rates are different from landing rate
+                    if (item.rate !== item.plRate) {
+                      d.fields_dict.items.grid.grid_rows[idx].row.addClass(
+                        "highlight-red"
+                      );
+                    } else {
+                      d.fields_dict.items.grid.grid_rows[idx].row.addClass(
+                        "highlight-white"
+                      );
+                    }
+                    frappe.show_alert({
+                      message:
+                        "Using MRP from document, please save changes...",
+                      indicator: "blue",
+                    });
+                    d.fields_dict.items.grid.refresh();
+                  } else {
+                    // MRP not found in document, fetch from ERPNext price list
+                    frappe.call({
+                      method: "erpnext.stock.get_item_details.get_item_details",
                       args: {
-                        item_code: item_code_to_use,
-                        price_list: price_list,
-                        customer: customer,
-                        company: frappe.defaults.get_default("company"),
-                        doctype: "Sales Order",
-                        price_list_currency: price_list_currency,
-                        conversion_rate: 1,
-                        currency: price_list_currency,
+                        args: {
+                          item_code: item_code_to_use,
+                          price_list: price_list,
+                          customer: customer,
+                          company: frappe.defaults.get_default("company"),
+                          doctype: "Sales Order",
+                          price_list_currency: price_list_currency,
+                          conversion_rate: 1,
+                          currency: price_list_currency,
+                        },
                       },
-                    },
-                    callback: (result) => {
-                      if (result.message) {
-                        // Update rate with price list rate
-                        item.plRate = result.message.price_list_rate;
+                      callback: (result) => {
+                        if (result.message) {
+                          // Update rate with price list rate
+                          item.plRate = result.message.price_list_rate;
 
-                        // Highlight if rates are different from landing rate
-                        if (item.rate !== item.plRate) {
-                          d.fields_dict.items.grid.grid_rows[idx].row.addClass(
-                            "highlight-red"
-                          );
-                        } else {
-                          d.fields_dict.items.grid.grid_rows[idx].row.addClass(
-                            "highlight-white"
-                          );
+                          // Highlight if rates are different from landing rate
+                          if (item.rate !== item.plRate) {
+                            d.fields_dict.items.grid.grid_rows[idx].row.addClass(
+                              "highlight-red"
+                            );
+                          } else {
+                            d.fields_dict.items.grid.grid_rows[idx].row.addClass(
+                              "highlight-white"
+                            );
+                          }
+                          frappe.show_alert({
+                            message:
+                              "Price List Rate fetched, please save changes...",
+                            indicator: "blue",
+                          });
+                          d.fields_dict.items.grid.refresh();
                         }
-                        frappe.show_alert({
-                          message:
-                            "Price List Rate fetched, please save changes...",
-                          indicator: "blue",
-                        });
-                        d.fields_dict.items.grid.refresh();
-                      }
-                    },
-                  });
+                      },
+                    });
+                  }
                 },
                 always: () => {
                   // Check if this is the last item and show error if needed
                   if (idx === items.length - 1 && hasErrors) {
                     setTimeout(() => {
-                      frappe.throw(
-                        __(
-                          "Customer Item Code Mapping not found for the following items: {0}",
-                          [itemsWithoutMapping.join(", ")]
-                        )
-                      );
+                      let errorMessages = [];
+                      if (itemsWithInactiveMapping.length > 0) {
+                        errorMessages.push(
+                          __(
+                            "Customer Item Code Mapping is not active for the following items: {0}. Please activate the mappings in <a href='/app/customer-item-code-mapping'>Customer Item Code Mapping</a>",
+                            [itemsWithInactiveMapping.join(", ")]
+                          )
+                        );
+                      }
+                      if (itemsWithoutMapping.length > 0) {
+                        errorMessages.push(
+                          __(
+                            "Customer Item Code Mapping not found for the following items: {0}. Please map the item codes in <a href='/app/customer-item-code-mapping'>Customer Item Code Mapping</a>",
+                            [itemsWithoutMapping.join(", ")]
+                          )
+                        );
+                      }
+                      if (errorMessages.length > 0) {
+                        frappe.throw(errorMessages.join("<br>"));
+                      }
                     }, 1000); // Small delay to ensure all API calls are processed
                   }
                 },
