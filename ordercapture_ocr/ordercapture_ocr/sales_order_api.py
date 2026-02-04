@@ -208,25 +208,30 @@ def create_sales_order(response, file_path=None, ocr_doc_name=None):
             item_code = item.get("itemCode")
             mapped_item_code = customer_item_codes[item_code]
             document_plrate = item.get("plRate")
+            document_rate = item.get("rate", 0)
 
-            # Check for plRate mismatch if document has plRate
-            if document_plrate is not None and document_plrate > 0:
-                try:
-                    from erpnext.stock.get_item_details import get_item_details
-                    system_item_details = get_item_details(
-                        {
-                            "item_code": mapped_item_code,
-                            "price_list": price_list,
-                            "customer": customer,
-                            "company": defaultCompany,
-                            "doctype": "Sales Order",
-                            "currency": currency,
-                            "price_list_currency": price_list_currency,
-                            "conversion_rate": 1,
-                        }
-                    )
-                    system_plrate = system_item_details.get("price_list_rate", 0) or 0
-                    
+            # Get item details from ERPNext to use system rates, not document rates
+            try:
+                from erpnext.stock.get_item_details import get_item_details
+                system_item_details = get_item_details(
+                    {
+                        "item_code": mapped_item_code,
+                        "price_list": price_list,
+                        "customer": customer,
+                        "company": defaultCompany,
+                        "doctype": "Sales Order",
+                        "currency": currency,
+                        "price_list_currency": price_list_currency,
+                        "conversion_rate": 1,
+                    }
+                )
+                system_plrate = system_item_details.get("price_list_rate", 0) or 0
+                # For unit price, get_item_details typically returns price_list_rate, not rate
+                # The rate field is usually calculated later. Use price_list_rate for comparison
+                system_rate = system_item_details.get("rate") or 0
+                
+                # Check for plRate mismatch if document has plRate (for logging purposes only)
+                if document_plrate is not None and document_plrate > 0:
                     # Compare document plRate with system plRate (allow small tolerance for floating point)
                     if abs(float(document_plrate) - float(system_plrate)) > 0.01:
                         plrate_mismatches.append({
@@ -235,30 +240,67 @@ def create_sales_order(response, file_path=None, ocr_doc_name=None):
                             "item_name": item.get("itemName"),
                             "document_plrate": document_plrate,
                             "system_plrate": system_plrate,
+                            "document_rate": document_rate,
+                            "system_rate": system_rate,
                         })
-                except Exception as e:
-                    # If error getting system plRate, log it but continue
-                    frappe.log_error(
-                        f"Error getting price list rate for {mapped_item_code}: {str(e)}",
-                        "plRate Check Error"
-                    )
+            except Exception as e:
+                # If error getting system rates, log it but continue
+                frappe.log_error(
+                    f"Error getting item details for {mapped_item_code}: {str(e)}",
+                    "Item Details Error"
+                )
+                # Fallback to document values if system values can't be retrieved
+                system_rate = document_rate
+                system_plrate = document_plrate or 0
 
-            # Prepare item data
+            # Prepare item data - use ERPNext rates, not document rates
             item_data = {
                 "item_code": mapped_item_code,
                 "qty": item.get("qty"),
-                "rate": item.get("rate"),
                 "warehouse": source_warehouse,
             }
             
-            # Set price_list_rate if plRate is available and > 0
-            if document_plrate is not None and document_plrate > 0:
-                item_data["price_list_rate"] = document_plrate
+            # Set price_list_rate from ERPNext, not from document
+            # Don't set rate here - let set_missing_values() calculate it from price_list_rate
+            if system_plrate > 0:
+                item_data["price_list_rate"] = system_plrate
+            # If system_rate is available and > 0, set it; otherwise let set_missing_values() handle it
+            if system_rate and system_rate > 0:
+                item_data["rate"] = system_rate
             
             sales_order.append("items", item_data)
 
         # Set missing values first (this sets currency, exchange rate, etc.)
         sales_order.set_missing_values()
+        
+        # Ensure all rates come from ERPNext, not document
+        # After set_missing_values(), update rates from ERPNext if needed
+        for so_item in sales_order.items:
+            try:
+                from erpnext.stock.get_item_details import get_item_details
+                system_item_details = get_item_details(
+                    {
+                        "item_code": so_item.item_code,
+                        "price_list": price_list,
+                        "customer": customer,
+                        "company": defaultCompany,
+                        "doctype": "Sales Order",
+                        "currency": currency,
+                        "price_list_currency": price_list_currency,
+                        "conversion_rate": 1,
+                    }
+                )
+                # Update price_list_rate and rate from ERPNext
+                system_plrate = system_item_details.get("price_list_rate", 0) or 0
+                system_rate = system_item_details.get("rate") or system_item_details.get("price_list_rate", 0) or 0
+                
+                if system_plrate > 0:
+                    so_item.price_list_rate = system_plrate
+                if system_rate > 0:
+                    so_item.rate = system_rate
+            except Exception:
+                # If error, continue with existing values
+                pass
         
         # Set taxes after missing values are set
         sales_order.set_taxes()
@@ -268,6 +310,26 @@ def create_sales_order(response, file_path=None, ocr_doc_name=None):
 
         sales_order.insert(ignore_permissions=True)
         frappe.db.commit()
+        
+        # Reload sales order from database to get final calculated rates after pricing rules and other calculations
+        sales_order.reload()
+        
+        # Update system_rate in plrate_mismatches with actual rates from saved sales order items
+        # Fetch ERPNext unit price from the rate field AFTER sales order is saved
+        # This ensures pricing rules and other calculations are applied
+        for mismatch in plrate_mismatches:
+            item_code = mismatch.get("item_code")
+            # Find the corresponding item in the saved sales order
+            for so_item in sales_order.items:
+                if so_item.item_code == item_code:
+                    # Get the actual rate from the sales order item's rate field
+                    # This is the ERPNext unit price after all calculations (pricing rules, etc.)
+                    erpnext_unit_price = so_item.rate or 0
+                    mismatch["system_rate"] = erpnext_unit_price
+                    # Also update system_plrate from the saved item to ensure accuracy
+                    if so_item.price_list_rate:
+                        mismatch["system_plrate"] = so_item.price_list_rate
+                    break
         
         # Create OCR Error Log if plRate mismatches found
         if plrate_mismatches:
@@ -298,21 +360,59 @@ def create_sales_order(response, file_path=None, ocr_doc_name=None):
                                     if file_doc:
                                         file_name = file_doc
                 
-                error_log = frappe.get_doc({
-                    "doctype": "OCR Error Log",
-                    "reference_doctype": "Sales Order",
-                    "reference_docname": sales_order.name,
-                    "file": file_name,
-                    "error": frappe.as_json({
-                        "type": "plRate Mismatch",
-                        "message": "Price List Rate from document does not match system price list rate",
-                        "mismatches": plrate_mismatches
-                    }, indent=2)
-                })
-                error_log.insert(ignore_permissions=True)
+                # Get customer group from customer
+                customer_group = None
+                if customer:
+                    customer_group = frappe.db.get_value("Customer", customer, "customer_group")
+                
+                # Create one OCR Error Log per mismatch to track individual MRP differences
+                for mismatch in plrate_mismatches:
+                    document_unit_price = mismatch.get("document_rate", 0)
+                    erpnext_unit_price = mismatch.get("system_rate", 0)
+                    unit_price_difference = float(document_unit_price) - float(erpnext_unit_price)
+                    
+                    document_mrp = mismatch.get("document_plrate", 0)
+                    erpnext_mrp = mismatch.get("system_plrate", 0)
+                    mrp_difference = float(document_mrp) - float(erpnext_mrp)
+                    
+                    # Get item name from ERPNext based on item code
+                    item_code = mismatch.get("item_code")
+                    erpnext_item_name = frappe.db.get_value("Item", item_code, "item_name") if item_code else None
+                    
+                    error_log = frappe.get_doc({
+                        "doctype": "OCR Error Log",
+                        "reference_doctype": "Sales Order",
+                        "reference_docname": sales_order.name,
+                        "file": file_name,
+                        "item": item_code,
+                        "item_name": erpnext_item_name,
+                        "customer": customer,
+                        "customer_group": customer_group,
+                        "document_unit_price": document_unit_price,
+                        "erpnext_unit_price": erpnext_unit_price,
+                        "unit_price_difference": unit_price_difference,
+                        "document_mrp": document_mrp,
+                        "erpnext_mrp": erpnext_mrp,
+                        "difference": mrp_difference,
+                        "error": frappe.as_json({
+                            "type": "plRate Mismatch",
+                            "message": "Price List Rate from document does not match system price list rate",
+                            "item_code": mismatch.get("item_code"),
+                            "customer_item_code": mismatch.get("customer_item_code"),
+                            "item_name": mismatch.get("item_name"),
+                            "document_plrate": document_mrp,
+                            "system_plrate": erpnext_mrp,
+                            "document_rate": document_unit_price,
+                            "system_rate": erpnext_unit_price,
+                            "unit_price_difference": unit_price_difference,
+                            "mrp_difference": mrp_difference
+                        }, indent=2)
+                    })
+                    error_log.insert(ignore_permissions=True)
+                
                 frappe.db.commit()
                 frappe.log_error(
-                    f"OCR Error Log created successfully: {error_log.name} for Sales Order: {sales_order.name}",
+                    f"OCR Error Log(s) created successfully: {len(plrate_mismatches)} log(s) for Sales Order: {sales_order.name}",
                     "OCR Error Log Success"
                 )
             except Exception as e:
