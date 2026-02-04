@@ -24,6 +24,9 @@ class items(BaseModel):
     itemName: str = Field(description="The item name")
     qty: float = Field(description="The quantity of the item")
     rate: float = Field(description="The rate of the item")
+    plRate: Optional[float] = Field(
+        description="The MRP (Maximum Retail Price) of the item, also known as plRate. Extract this value from the PDF document if available."
+    )
     gst: float = Field(description="The gst of the item")
     landing_rate: float = Field(
         description="The landing rate or unit based cost of the item"
