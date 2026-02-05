@@ -981,7 +981,7 @@ ordercapture_ocr.process_dialog = {
       d.fields_dict.items.grid.refresh();
 
       // Add rows from processed_json
-      orderDetails.forEach((item) => {
+      orderDetails.forEach((item, idx) => {
         if (!item || typeof item !== "object") {
           return;
         }
@@ -991,10 +991,21 @@ ordercapture_ocr.process_dialog = {
         let row = d.fields_dict.items.df.data[currentIndex];
 
         if (!row) {
+          console.warn(`Row not found at index ${currentIndex} for item ${idx}`);
           return;
         }
 
-        Object.assign(row, item);
+        // Map the item data to row, ensuring all fields are set
+        Object.assign(row, {
+          itemCode: item.itemCode || "",
+          itemName: item.itemName || "",
+          qty: item.qty || 0,
+          rate: item.rate || 0,
+          plRate: item.plRate || 0,
+          gst: item.gst || 0,
+          totalAmount: item.totalAmount || 0,
+          landing_rate: item.landing_rate || 0,
+        });
 
         // Add rate comparison and highlighting
         const gridRow = d.fields_dict.items.grid.grid_rows[currentIndex];
@@ -1034,18 +1045,27 @@ ordercapture_ocr.process_dialog = {
       d.set_value("po_number", processed_data.orderNumber);
       // d.set_value('po_date', processed_data.orderDate);
       d.set_value("po_expiry_date", formattedExpiryDate);
-      // Calculate totals from table data
-      const items = d.fields_dict.items.grid.data;
-      const total_item_qty = items.reduce(
-        (sum, item) => sum + (item.qty || 0),
-        0
-      );
-
-      const item_grand_total = Number(
-        items
-          .reduce((sum, item) => sum + (Number(item.totalAmount) || 0), 0)
-          .toFixed(2)
-      );
+      // Use totals from processed_data if available, otherwise calculate from table data
+      let total_item_qty, item_grand_total;
+      
+      if (processed_data.totals && processed_data.totals.totalItemQty !== undefined) {
+        // Use totals from processed JSON
+        total_item_qty = processed_data.totals.totalItemQty;
+        item_grand_total = processed_data.totals.itemGrandTotal || 0;
+      } else {
+        // Calculate totals from table data as fallback
+        const items = d.fields_dict.items.grid.data;
+        total_item_qty = items.reduce(
+          (sum, item) => sum + (item.qty || 0),
+          0
+        );
+        item_grand_total = Number(
+          items
+            .reduce((sum, item) => sum + (Number(item.totalAmount) || 0), 0)
+            .toFixed(2)
+        );
+      }
+      
       // Sets the calculated values
       d.set_value("total_item_qty", total_item_qty);
       d.set_value("item_grand_total", item_grand_total);
