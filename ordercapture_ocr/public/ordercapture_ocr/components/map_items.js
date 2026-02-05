@@ -29,10 +29,11 @@ ordercapture_ocr.map_items = {
           fieldname: "customer_item_code",
           label: "Customer Item Code",
           reqd: 1,
-          onchange: function() {
-            const customer_item_code = mapDialog.get_value("customer_item_code");
+          onchange: function () {
+            const customer_item_code =
+              mapDialog.get_value("customer_item_code");
             const customer_value = mapDialog.get_value("customer");
-            
+
             if (customer_item_code && customer_value) {
               // Check if mapping already exists to pre-populate active status
               frappe.call({
@@ -50,9 +51,15 @@ ordercapture_ocr.map_items = {
                     console.log(r.message);
                     const existingMapping = r.message[0];
                     // Pre-populate active checkbox and item code
-                    mapDialog.set_value("active", existingMapping.active ? 1 : 0);
+                    mapDialog.set_value(
+                      "active",
+                      existingMapping.active ? 1 : 0
+                    );
                     if (existingMapping.item_code) {
-                      mapDialog.set_value("item_code", existingMapping.item_code);
+                      mapDialog.set_value(
+                        "item_code",
+                        existingMapping.item_code
+                      );
                     }
                   }
                 },

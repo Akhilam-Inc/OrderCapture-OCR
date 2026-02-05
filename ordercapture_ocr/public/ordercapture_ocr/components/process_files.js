@@ -191,7 +191,7 @@ ordercapture_ocr.process_dialog = {
               in_list_view: 1,
               columns: 1,
             },
-            
+
             {
               fieldtype: "Column Break",
               fieldname: "col_5",
@@ -224,7 +224,6 @@ ordercapture_ocr.process_dialog = {
               in_list_view: 1,
               columns: 1,
             },
-            
           ],
         },
         {
@@ -1123,7 +1122,9 @@ ordercapture_ocr.process_dialog = {
             freeze: true,
             args: {
               response: sales_order_values,
-              file_path: d.get_value("file_path") ? d.get_value("file_path").split(": ")[1] : null,
+              file_path: d.get_value("file_path")
+                ? d.get_value("file_path").split(": ")[1]
+                : null,
               ocr_doc_name: d.get_value("current_id"),
             },
             callback: (r) => {
@@ -1322,13 +1323,13 @@ ordercapture_ocr.process_dialog = {
 
                           // Highlight if rates are different from landing rate
                           if (item.rate !== item.plRate) {
-                            d.fields_dict.items.grid.grid_rows[idx].row.addClass(
-                              "highlight-red"
-                            );
+                            d.fields_dict.items.grid.grid_rows[
+                              idx
+                            ].row.addClass("highlight-red");
                           } else {
-                            d.fields_dict.items.grid.grid_rows[idx].row.addClass(
-                              "highlight-white"
-                            );
+                            d.fields_dict.items.grid.grid_rows[
+                              idx
+                            ].row.addClass("highlight-white");
                           }
                           frappe.show_alert({
                             message:

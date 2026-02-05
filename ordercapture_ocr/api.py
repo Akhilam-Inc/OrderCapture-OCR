@@ -189,7 +189,7 @@ def _process_bb_items(item_details: pd.DataFrame) -> list:
             if "MRP" in str(col).strip().upper():
                 mrp_column = col
                 break
-        
+
         if mrp_column is not None and mrp_column in row:
             try:
                 mrp_value = row[mrp_column]
@@ -201,7 +201,7 @@ def _process_bb_items(item_details: pd.DataFrame) -> list:
             except (ValueError, TypeError):
                 # If MRP can't be converted, skip it
                 pass
-        
+
         items.append(item)
     return items
 
@@ -222,14 +222,14 @@ def _process_flipkart_items(item_details: pd.DataFrame) -> list:
             "landing_rate": rate + gst,
             "totalAmount": row["Total Amount"],
         }
-        
+
         # Extract MRP if column exists (case-insensitive, like match)
         mrp_column = None
         for col in item_details.columns:
             if "MRP" in str(col).strip().upper():
                 mrp_column = col
                 break
-        
+
         if mrp_column is not None and mrp_column in row:
             try:
                 mrp_value = row[mrp_column]
@@ -241,7 +241,7 @@ def _process_flipkart_items(item_details: pd.DataFrame) -> list:
             except (ValueError, TypeError):
                 # If MRP can't be converted, skip it
                 pass
-        
+
         items.append(item)
     return items
 
