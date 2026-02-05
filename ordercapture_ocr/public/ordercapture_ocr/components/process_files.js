@@ -956,7 +956,6 @@ ordercapture_ocr.process_dialog = {
         console.error("Invalid processed_json passed to setTableFromProcessedJson", e);
         return;
       }
-      console.log("processed_data", processed_data);
 
       const orderDetails = Array.isArray(processed_data.orderDetails)
         ? processed_data.orderDetails.filter((item) => item)
@@ -978,25 +977,17 @@ ordercapture_ocr.process_dialog = {
         d.$wrapper.find(".update-rate-btn").hide();
       }
 
-      d.fields_dict.items.grid.refresh();
-
-      // Add rows from processed_json
-      orderDetails.forEach((item, idx) => {
+      // Manually add rows to data array since cannot_add_rows is true
+      const rows = orderDetails.map((item, idx) => {
         if (!item || typeof item !== "object") {
-          return;
+          return null;
         }
 
-        d.fields_dict.items.grid.add_new_row();
-        const currentIndex = d.fields_dict.items.df.data.length - 1;
-        let row = d.fields_dict.items.df.data[currentIndex];
-
-        if (!row) {
-          console.warn(`Row not found at index ${currentIndex} for item ${idx}`);
-          return;
-        }
-
-        // Map the item data to row, ensuring all fields are set
-        Object.assign(row, {
+        // Create row object with proper structure
+        const rowIdx = idx + 1;
+        return {
+          idx: rowIdx,
+          __islocal: true,
           itemCode: item.itemCode || "",
           itemName: item.itemName || "",
           qty: item.qty || 0,
@@ -1005,21 +996,30 @@ ordercapture_ocr.process_dialog = {
           gst: item.gst || 0,
           totalAmount: item.totalAmount || 0,
           landing_rate: item.landing_rate || 0,
-        });
+        };
+      }).filter(row => row !== null);
 
-        // Add rate comparison and highlighting
-        const gridRow = d.fields_dict.items.grid.grid_rows[currentIndex];
-        if (gridRow && gridRow.row) {
-          if (row.rate !== row.plRate) {
-            gridRow.row.addClass("highlight-red");
-          } else {
-            gridRow.row.addClass("highlight-white");
-          }
-        }
-      });
+      // Set the data arrays
+      d.fields_dict.items.df.data = rows;
+      d.fields_dict.items.grid.data = rows;
 
       // Refresh grid and set totals
       d.fields_dict.items.grid.refresh();
+      
+      // Add rate comparison and highlighting after grid is fully rendered
+      setTimeout(() => {
+        d.fields_dict.items.grid.data.forEach((row, idx) => {
+          const gridRow = d.fields_dict.items.grid.grid_rows[idx];
+          if (gridRow && gridRow.row) {
+            if (row.rate !== row.plRate) {
+              gridRow.row.addClass("highlight-red");
+            } else {
+              gridRow.row.addClass("highlight-white");
+            }
+          }
+        });
+      }, 100);
+      
       // Set initial data and bind change handler
       initial_table_data = JSON.stringify(d.fields_dict.items.grid.data);
 
