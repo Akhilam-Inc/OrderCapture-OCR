@@ -941,13 +941,32 @@ ordercapture_ocr.process_dialog = {
     };
 
     const setTableFromProcessedJson = (d, processed_json) => {
-      const processed_data = JSON.parse(processed_json);
+      if (!processed_json) {
+        // Nothing to set
+        return;
+      }
+
+      let processed_data;
+      try {
+        processed_data =
+          typeof processed_json === "string"
+            ? JSON.parse(processed_json)
+            : processed_json;
+      } catch (e) {
+        console.error("Invalid processed_json passed to setTableFromProcessedJson", e);
+        return;
+      }
+      console.log("processed_data", processed_data);
+
+      const orderDetails = Array.isArray(processed_data.orderDetails)
+        ? processed_data.orderDetails.filter((item) => item)
+        : [];
 
       d.fields_dict.items.df.data = [];
       d.fields_dict.items.grid.data = [];
       d.fields_dict.items.grid.make_head();
 
-      if (processed_data.orderDetails.length > 0) {
+      if (orderDetails.length > 0) {
         d.$wrapper.find(".post-sales-order-btn").show();
         d.$wrapper.find(".save-changes-btn").show();
         d.$wrapper.find(".fetch_price_list_rate").show();
@@ -962,23 +981,29 @@ ordercapture_ocr.process_dialog = {
       d.fields_dict.items.grid.refresh();
 
       // Add rows from processed_json
-      processed_data.orderDetails.forEach((item) => {
-        let row = d.fields_dict.items.df.data;
+      orderDetails.forEach((item) => {
+        if (!item || typeof item !== "object") {
+          return;
+        }
+
         d.fields_dict.items.grid.add_new_row();
         const currentIndex = d.fields_dict.items.df.data.length - 1;
-        row =
-          d.fields_dict.items.df.data[d.fields_dict.items.df.data.length - 1];
+        let row = d.fields_dict.items.df.data[currentIndex];
+
+        if (!row) {
+          return;
+        }
+
         Object.assign(row, item);
 
-        // // Add rate comparison and highlighting
-        if (row.rate !== row.plRate) {
-          d.fields_dict.items.grid.grid_rows[currentIndex].row.addClass(
-            "highlight-red"
-          );
-        } else {
-          d.fields_dict.items.grid.grid_rows[currentIndex].row.addClass(
-            "highlight-white"
-          );
+        // Add rate comparison and highlighting
+        const gridRow = d.fields_dict.items.grid.grid_rows[currentIndex];
+        if (gridRow && gridRow.row) {
+          if (row.rate !== row.plRate) {
+            gridRow.row.addClass("highlight-red");
+          } else {
+            gridRow.row.addClass("highlight-white");
+          }
         }
       });
 
