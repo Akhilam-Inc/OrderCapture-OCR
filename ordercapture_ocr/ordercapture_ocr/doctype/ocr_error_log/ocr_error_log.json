@@ -1,0 +1,157 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-02-03 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "reference_doctype",
+  "reference_docname",
+  "item",
+  "item_name",
+  "customer_group",
+  "customer",
+  "column_break_hiol",
+  "document_unit_price",
+  "erpnext_unit_price",
+  "unit_price_difference",
+  "document_mrp",
+  "erpnext_mrp",
+  "difference",
+  "section_break_warc",
+  "file",
+  "error"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "OCR-ERR-.YYYY.-",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Reference Doctype",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "reference_docname",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Reference DocName",
+   "options": "reference_doctype"
+  },
+  {
+   "fieldname": "file",
+   "fieldtype": "Attach",
+   "in_list_view": 1,
+   "label": "File"
+  },
+  {
+   "fieldname": "error",
+   "fieldtype": "Code",
+   "label": "Error",
+   "options": "JSON"
+  },
+  {
+   "default": "0",
+   "fieldname": "document_unit_price",
+   "fieldtype": "Float",
+   "label": "Document Unit Price"
+  },
+  {
+   "default": "0",
+   "fieldname": "erpnext_unit_price",
+   "fieldtype": "Float",
+   "label": "ERPNext Unit Price"
+  },
+  {
+   "default": "0",
+   "fieldname": "unit_price_difference",
+   "fieldtype": "Float",
+   "label": "Unit Price Difference"
+  },
+  {
+   "default": "0",
+   "fieldname": "document_mrp",
+   "fieldtype": "Float",
+   "label": "Document MRP"
+  },
+  {
+   "default": "0",
+   "fieldname": "erpnext_mrp",
+   "fieldtype": "Float",
+   "label": "ERPNext MRP"
+  },
+  {
+   "default": "0",
+   "fieldname": "difference",
+   "fieldtype": "Float",
+   "label": "Difference"
+  },
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "label": "Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Item Name"
+  },
+  {
+   "fieldname": "customer_group",
+   "fieldtype": "Link",
+   "label": "Customer Group",
+   "options": "Customer Group"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "column_break_hiol",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_warc",
+   "fieldtype": "Section Break"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-02-04 20:09:30.598032",
+ "modified_by": "Administrator",
+ "module": "OrderCapture OCR",
+ "name": "OCR Error Log",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

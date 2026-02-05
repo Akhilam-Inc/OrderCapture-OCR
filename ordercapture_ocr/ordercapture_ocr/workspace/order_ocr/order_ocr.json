@@ -16,25 +16,6 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Transaction",
-   "link_count": 1,
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "OCR Document Processor",
-   "link_count": 0,
-   "link_to": "OCR Document Processor",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
    "label": "Configuration",
    "link_count": 2,
    "link_type": "DocType",
@@ -60,9 +41,38 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Transaction",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "OCR Document Processor",
+   "link_count": 0,
+   "link_to": "OCR Document Processor",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "OCR Error Log",
+   "link_count": 0,
+   "link_to": "OCR Error Log",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2025-12-16 21:40:16.529673",
+ "modified": "2026-02-03 12:41:10.279027",
  "modified_by": "Administrator",
  "module": "OrderCapture OCR",
  "name": "Order OCR",

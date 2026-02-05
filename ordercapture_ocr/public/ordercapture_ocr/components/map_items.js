@@ -29,6 +29,43 @@ ordercapture_ocr.map_items = {
           fieldname: "customer_item_code",
           label: "Customer Item Code",
           reqd: 1,
+          onchange: function () {
+            const customer_item_code =
+              mapDialog.get_value("customer_item_code");
+            const customer_value = mapDialog.get_value("customer");
+
+            if (customer_item_code && customer_value) {
+              // Check if mapping already exists to pre-populate active status
+              frappe.call({
+                method: "frappe.client.get_list",
+                args: {
+                  doctype: "Customer Item Code Mapping",
+                  filters: [
+                    ["customer", "=", customer_value],
+                    ["customer_item_code", "=", customer_item_code],
+                  ],
+                  fields: ["name", "active", "item_code"],
+                },
+                callback: (r) => {
+                  if (r.message && r.message.length > 0) {
+                    console.log(r.message);
+                    const existingMapping = r.message[0];
+                    // Pre-populate active checkbox and item code
+                    mapDialog.set_value(
+                      "active",
+                      existingMapping.active ? 1 : 0
+                    );
+                    if (existingMapping.item_code) {
+                      mapDialog.set_value(
+                        "item_code",
+                        existingMapping.item_code
+                      );
+                    }
+                  }
+                },
+              });
+            }
+          },
         },
         {
           fieldtype: "Link",
@@ -38,12 +75,23 @@ ordercapture_ocr.map_items = {
           default: customer,
           reqd: 1,
         },
+        {
+          fieldtype: "Column Break",
+          fieldname: "col_break",
+        },
+        {
+          fieldtype: "Check",
+          fieldname: "active",
+          label: "Active",
+          default: 1,
+        },
       ],
       primary_action_label: "Save Mapping",
       primary_action: function () {
         const item_code = mapDialog.get_value("item_code");
         const customer_item_code = mapDialog.get_value("customer_item_code");
         const customer_value = mapDialog.get_value("customer");
+        const active = mapDialog.get_value("active") ? 1 : 0;
 
         if (!item_code || !customer_item_code || !customer_value) {
           frappe.show_alert({
@@ -62,18 +110,20 @@ ordercapture_ocr.map_items = {
               ["customer", "=", customer_value],
               ["customer_item_code", "=", customer_item_code],
             ],
-            fields: ["name"],
+            fields: ["name", "active"],
           },
           callback: (r) => {
             if (r.message && r.message.length > 0) {
-              // Update existing mapping
+              const existingMapping = r.message[0];
+              // Update existing mapping with the active checkbox value
               frappe.call({
                 method: "frappe.client.set_value",
                 args: {
                   doctype: "Customer Item Code Mapping",
-                  name: r.message[0].name,
+                  name: existingMapping.name,
                   fieldname: {
                     item_code: item_code,
+                    active: active,
                   },
                 },
                 callback: (update_result) => {
@@ -87,7 +137,7 @@ ordercapture_ocr.map_items = {
                 },
               });
             } else {
-              // Create new mapping
+              // Create new mapping with the active checkbox value
               frappe.call({
                 method: "frappe.client.insert",
                 args: {
@@ -96,6 +146,7 @@ ordercapture_ocr.map_items = {
                     item_code: item_code,
                     customer_item_code: customer_item_code,
                     customer: customer_value,
+                    active: active,
                   },
                 },
                 callback: (insert_result) => {

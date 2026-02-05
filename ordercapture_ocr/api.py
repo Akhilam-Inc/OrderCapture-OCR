@@ -174,17 +174,35 @@ def _process_bb_items(item_details: pd.DataFrame) -> list:
     """Process BB vendor items"""
     items = []
     for index, row in item_details.iterrows():
-        items.append(
-            {
-                "itemCode": row["SKU Code"],
-                "itemName": row["Description"],
-                "qty": row["Quantity"],
-                "rate": row["Basic Cost"],
-                "gst": row["GST Amount"] / row["Quantity"],
-                "landing_rate": row["Landing Cost"],
-                "totalAmount": row["Total Value"],
-            }
-        )
+        item = {
+            "itemCode": row["SKU Code"],
+            "itemName": row["Description"],
+            "qty": row["Quantity"],
+            "rate": row["Basic Cost"],
+            "gst": row["GST Amount"] / row["Quantity"],
+            "landing_rate": row["Landing Cost"],
+            "totalAmount": row["Total Value"],
+        }
+        # Extract MRP if column exists (case-insensitive, like match)
+        mrp_column = None
+        for col in item_details.columns:
+            if "MRP" in str(col).strip().upper():
+                mrp_column = col
+                break
+
+        if mrp_column is not None and mrp_column in row:
+            try:
+                mrp_value = row[mrp_column]
+                # Handle different data types
+                if pd.notna(mrp_value):
+                    if isinstance(mrp_value, str):
+                        mrp_value = convert_string_with_inr(mrp_value)
+                    item["plRate"] = float(mrp_value)
+            except (ValueError, TypeError):
+                # If MRP can't be converted, skip it
+                pass
+
+        items.append(item)
     return items
 
 
@@ -195,17 +213,36 @@ def _process_flipkart_items(item_details: pd.DataFrame) -> list:
         rate = convert_string_with_inr(row["Supplier Price"])
         gst = convert_string_with_inr(row["Tax Amount"]) / row["Quantity"]
 
-        items.append(
-            {
-                "itemCode": row["FSN/ISBN13"],
-                "itemName": row["Title"],
-                "qty": row["Quantity"],
-                "rate": rate,
-                "gst": gst,
-                "landing_rate": rate + gst,
-                "totalAmount": row["Total Amount"],
-            }
-        )
+        item = {
+            "itemCode": row["FSN/ISBN13"],
+            "itemName": row["Title"],
+            "qty": row["Quantity"],
+            "rate": rate,
+            "gst": gst,
+            "landing_rate": rate + gst,
+            "totalAmount": row["Total Amount"],
+        }
+
+        # Extract MRP if column exists (case-insensitive, like match)
+        mrp_column = None
+        for col in item_details.columns:
+            if "MRP" in str(col).strip().upper():
+                mrp_column = col
+                break
+
+        if mrp_column is not None and mrp_column in row:
+            try:
+                mrp_value = row[mrp_column]
+                # Handle different data types
+                if pd.notna(mrp_value):
+                    if isinstance(mrp_value, str):
+                        mrp_value = convert_string_with_inr(mrp_value)
+                    item["plRate"] = float(mrp_value)
+            except (ValueError, TypeError):
+                # If MRP can't be converted, skip it
+                pass
+
+        items.append(item)
     return items
 
 
