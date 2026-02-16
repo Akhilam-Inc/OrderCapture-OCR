@@ -18,7 +18,9 @@ from ordercapture_ocr.ordercapture_ocr.ocr_processor.structure_data_with_llm imp
 
 
 @frappe.whitelist()
-def get_ocr_documents(date=None, limit=10, offset=0, search="", file_type="all"):
+def get_ocr_documents(
+    date=None, limit=10, offset=0, search="", file_type="all", status="all"
+):
     """
     Get OCR Document Processor list for the dashboard with server-side pagination.
     Returns documents for the given date (default: today) with pagination, search, and filter.
@@ -27,8 +29,9 @@ def get_ocr_documents(date=None, limit=10, offset=0, search="", file_type="all")
         date: Filter by date (default: today)
         limit: Page size (default: 10)
         offset: Number of records to skip (default: 0)
-        search: Search in file_path and name (optional)
+        search: Search in file_path, name, and sales_order (optional)
         file_type: Filter by file type - all, pdf, excel, csv (default: all)
+        status: Filter by status - all, Pending, Failed, Processed, Completed (default: all)
 
     Returns:
         dict: { "data": [...], "total": N }
@@ -44,6 +47,7 @@ def get_ocr_documents(date=None, limit=10, offset=0, search="", file_type="all")
     offset = int(offset)
     search = (search or "").strip()
     file_type = (file_type or "all").lower() if file_type else "all"
+    status = (status or "all").strip() if status else "all"
 
     ocr_doc = DocType("OCR Document Processor")
 
@@ -77,7 +81,9 @@ def get_ocr_documents(date=None, limit=10, offset=0, search="", file_type="all")
     def apply_filters(q):
         if search_term:
             q = q.where(
-                (ocr_doc.file_path.like(search_term)) | (ocr_doc.name.like(search_term))
+                (ocr_doc.file_path.like(search_term))
+                | (ocr_doc.name.like(search_term))
+                | (ocr_doc.sales_order.like(search_term))
             )
         if file_type == "pdf":
             q = q.where(ocr_doc.file_path.like("%.pdf"))
@@ -87,6 +93,8 @@ def get_ocr_documents(date=None, limit=10, offset=0, search="", file_type="all")
             )
         elif file_type == "csv":
             q = q.where(ocr_doc.file_path.like("%.csv"))
+        if status and status != "all":
+            q = q.where(ocr_doc.status == status)
         return q
 
     data_query = apply_filters(data_query)

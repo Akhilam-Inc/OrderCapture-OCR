@@ -58,13 +58,13 @@ ordercapture_ocr.components.Dashboard = {
 						type="text"
 						class="form-control form-control-sm me-2"
 						style="max-width: 400px;margin-right:10px"
-						placeholder="Search by file name..."
+						placeholder="Search by file name, doc ref, or sales ref..."
 						v-model="searchQuery"
 						@input="onSearchInput"
 					  >
 					  <select
 						class="form-control form-control-sm"
-						style="max-width: 140px;"
+						style="max-width: 180px;margin-right:10px"
 						v-model="fileTypeFilter"
 						@change="onFilterChange"
 					  >
@@ -72,6 +72,18 @@ ordercapture_ocr.components.Dashboard = {
 						<option value="pdf">PDF</option>
 						<option value="excel">Excel</option>
 						<option value="csv">CSV</option>
+					  </select>
+					  <select
+						class="form-control form-control-sm"
+						style="max-width: 140px;"
+						v-model="statusFilter"
+						@change="onFilterChange"
+					  >
+						<option value="all">All Status</option>
+						<option value="Pending">Pending</option>
+						<option value="Failed">Failed</option>
+						<option value="Processed">Processed</option>
+						<option value="Completed">Completed</option>
 					  </select>
 					</div>
 				  </div>
@@ -216,6 +228,7 @@ ordercapture_ocr.components.Dashboard = {
       selectedRowIds: [],
       searchQuery: "",
       fileTypeFilter: "all",
+      statusFilter: "all",
       pageSize: 20,
       currentPage: 1,
       totalCount: 0,
@@ -375,6 +388,7 @@ ordercapture_ocr.components.Dashboard = {
           offset: (this.currentPage - 1) * this.pageSize,
           search: this.searchQuery,
           file_type: this.fileTypeFilter,
+          status: this.statusFilter,
         },
         callback: (r) => {
           const result = r.message || {};

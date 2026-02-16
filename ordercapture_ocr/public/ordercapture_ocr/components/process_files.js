@@ -1173,7 +1173,11 @@ ordercapture_ocr.process_dialog = {
               ocr_doc_name: d.get_value("current_id"),
             },
             callback: (r) => {
-              const sales_order_name = r.message;
+              const response = r.message;
+              const sales_order_name =
+                typeof response === "object"
+                  ? response?.sales_order
+                  : response;
 
               if (sales_order_name) {
                 //Attach the file to the Sales Order
@@ -1220,6 +1224,18 @@ ordercapture_ocr.process_dialog = {
                           hidden: true,
                         });
                         d.$wrapper.find(".post-sales-order-btn").hide();
+
+                        // Show popup for items with Error Log created (plRate mismatch)
+                        const error_log_items =
+                          typeof response === "object"
+                            ? response?.error_log_items
+                            : [];
+                        if (
+                          error_log_items &&
+                          error_log_items.length > 0
+                        ) {
+                          show_error_log_items_popup(error_log_items);
+                        }
                       },
                     });
                   },
@@ -1703,6 +1719,74 @@ function refreshPageInBackground() {
   // Add to document
   document.body.appendChild(iframe);
 }
+
+function show_error_log_items_popup(error_log_items) {
+  const table_rows = error_log_items
+    .map(
+      (item) => {
+        const errorLogLink = item.error_log_name
+          ? `<a href="/app/ocr-error-log/${item.error_log_name}" target="_blank" class="text-primary">${item.error_log_name}</a>`
+          : "-";
+        return `
+    <tr>
+      <td>${item.customer_item_code || "-"}</td>
+      <td>${item.item_code || "-"}</td>
+      <td>${item.item_name || "-"}</td>
+      <td>${errorLogLink}</td>
+      <td>${item.document_plrate != null ? item.document_plrate : "-"}</td>
+      <td>${item.system_plrate != null ? item.system_plrate : "-"}</td>
+      <td>${item.document_rate != null ? item.document_rate : "-"}</td>
+      <td>${item.system_rate != null ? item.system_rate : "-"}</td>
+    </tr>
+  `;
+      }
+    )
+    .join("");
+
+  const html = `
+    <div class="mb-3">
+      <p class="text-muted">
+        OCR Error Log(s) were created for the following items due to MRP/Price List Rate mismatch between document and system:
+      </p>
+      <table class="table table-bordered table-sm">
+        <thead>
+          <tr>
+            <th>Document Item Code</th>
+            <th>Item Code</th>
+            <th>Item Name</th>
+            <th>Error Log</th>
+            <th>Document MRP</th>
+            <th>System MRP</th>
+            <th>Document Rate</th>
+            <th>System Rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${table_rows}
+        </tbody>
+      </table>
+      <p class="text-muted small">
+        Click on the Error Log link to open and review each OCR Error Log.
+      </p>
+    </div>
+  `;
+
+  const d = new frappe.ui.Dialog({
+    title: __("Items with Error Log Created"),
+    size: "large",
+    fields: [
+      {
+        fieldtype: "HTML",
+        fieldname: "error_log_table",
+        options: html,
+      },
+    ],
+    primary_action_label: __("Close"),
+    primary_action: () => d.hide(),
+  });
+  d.show();
+}
+
 function levenshteinDistance(str1, str2) {
   const matrix = Array(str2.length + 1)
     .fill()

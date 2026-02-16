@@ -343,6 +343,7 @@ def create_sales_order(response, file_path=None, ocr_doc_name=None):
                     break
 
         # Create OCR Error Log if plRate mismatches found
+        created_error_log_names = []
         if plrate_mismatches:
             try:
                 # Get File document name from file_path if provided
@@ -439,6 +440,7 @@ def create_sales_order(response, file_path=None, ocr_doc_name=None):
                         }
                     )
                     error_log.insert(ignore_permissions=True)
+                    created_error_log_names.append(error_log.name)
 
                 frappe.db.commit()
                 frappe.log_error(
@@ -453,7 +455,25 @@ def create_sales_order(response, file_path=None, ocr_doc_name=None):
 
         frappe.msgprint(f"Sales Order {sales_order.name} created successfully")
 
-        return sales_order.name
+        # Return sales order name and error log items for frontend popup
+        result = {"sales_order": sales_order.name}
+        if plrate_mismatches:
+            result["error_log_items"] = [
+                {
+                    "item_code": m.get("item_code"),
+                    "customer_item_code": m.get("customer_item_code"),
+                    "item_name": m.get("item_name"),
+                    "document_plrate": m.get("document_plrate"),
+                    "system_plrate": m.get("system_plrate"),
+                    "document_rate": m.get("document_rate"),
+                    "system_rate": m.get("system_rate"),
+                    "error_log_name": created_error_log_names[i]
+                    if i < len(created_error_log_names)
+                    else None,
+                }
+                for i, m in enumerate(plrate_mismatches)
+            ]
+        return result
 
     except Exception:
         frappe.log_error(
