@@ -51,13 +51,42 @@ ordercapture_ocr.components.Dashboard = {
 			<div class="row mt-4 pb-4 border">
 			  <div class="col-md-12">
 				<div class="widget">
-				  <div class="widget-head">
+				  <div class="widget-head d-flex justify-content-between align-items-center flex-wrap gap-2">
 					<div class="widget-title">Order Details</div>
+					<div class="d-flex flex-nowrap gap-4 align-items-center">
+					  <input
+						type="text"
+						class="form-control form-control-sm me-2"
+						style="max-width: 400px;margin-right:10px"
+						placeholder="Search by file name..."
+						v-model="searchQuery"
+						@input="onSearchInput"
+					  >
+					  <select
+						class="form-control form-control-sm"
+						style="max-width: 140px;"
+						v-model="fileTypeFilter"
+						@change="onFilterChange"
+					  >
+						<option value="all">All File Types</option>
+						<option value="pdf">PDF</option>
+						<option value="excel">Excel</option>
+						<option value="csv">CSV</option>
+					  </select>
+					</div>
 				  </div>
 				  <div class="widget-body">
 					<table class="table">
 					  <thead>
 						<tr>
+						  <th style="width: 36px;">
+							<input
+								type="checkbox"
+								:checked="isAllSelected"
+								:indeterminate.prop="isSomeSelected"
+								@change="toggleSelectAll"
+							>
+						  </th>
 						  <th>ID</th>
 						  <th>Uploaded File</th>
 						  <th>View File</th>
@@ -68,8 +97,18 @@ ordercapture_ocr.components.Dashboard = {
 						</tr>
 					  </thead>
 					  <tbody>
-						<tr v-for="(order, index) in recentOrders" :key="order.id">
-						  <td>{{ index + 1 }}</td>
+						<tr v-if="loading">
+						  <td colspan="8" class="text-center py-4 text-muted">Loading...</td>
+						</tr>
+						<tr v-for="(order, index) in recentOrders" :key="order.id" v-show="!loading">
+						  <td>
+							<input
+								type="checkbox"
+								:checked="selectedRowIds.includes(order.id)"
+								@change="toggleRowSelection(order.id)"
+							>
+						  </td>
+						  <td>{{ (currentPage - 1) * pageSize + index + 1 }}</td>
 						  <td>{{ order.file_path }}</td>
 						  <td><button @click="viewOrder(order.id)" class="btn btn-sm btn-secondary">
 							  View
@@ -110,12 +149,40 @@ ordercapture_ocr.components.Dashboard = {
 						</tr>
 					  </tbody>
 					</table>
+					<div v-if="totalCount > pageSize" class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2">
+					  <div class="text-muted">
+						Showing {{ (currentPage - 1) * pageSize + 1 }}-{{ Math.min(currentPage * pageSize, totalCount) }} of {{ totalCount }}
+					  </div>
+					  <div class="btn-group btn-group-sm">
+						<button
+							class="btn btn-default"
+							:disabled="currentPage <= 1 || loading"
+							@click="goToPage(currentPage - 1)"
+						>
+							Previous
+						</button>
+						<button
+							class="btn btn-default"
+							:disabled="currentPage >= totalPages || loading"
+							@click="goToPage(currentPage + 1)"
+						>
+							Next
+						</button>
+					  </div>
+					</div>
 				  </div>
 				</div>
 			  </div>
 
 			  <div class="col-12">
-				<div class="col-md-12 d-flex justify-content-end flex-row gap-2">
+				<div class="col-md-12 d-flex justify-content-end flex-row gap-2 flex-wrap">
+					<button
+						v-if="selectedRowIds.length"
+						@click="processBulkFiles"
+						class="btn btn-primary mr-2"
+					>
+						Process Bulk Files ({{ selectedRowIds.length }})
+					</button>
 					<button @click="showProcessDialog" class="btn btn-primary mr-2">
 						Process Files
 					</button>
@@ -146,7 +213,34 @@ ordercapture_ocr.components.Dashboard = {
       selectedCustomer: "",
       uploadProgress: 0,
       uploading: false,
+      selectedRowIds: [],
+      searchQuery: "",
+      fileTypeFilter: "all",
+      pageSize: 20,
+      currentPage: 1,
+      totalCount: 0,
+      loading: false,
+      searchDebounceTimer: null,
     };
+  },
+  computed: {
+    totalPages() {
+      return Math.ceil(this.totalCount / this.pageSize) || 1;
+    },
+    isAllSelected() {
+      const pageIds = this.recentOrders.map((o) => o.id);
+      return (
+        pageIds.length > 0 &&
+        pageIds.every((id) => this.selectedRowIds.includes(id))
+      );
+    },
+    isSomeSelected() {
+      const pageIds = this.recentOrders.map((o) => o.id);
+      const selectedOnPage = pageIds.filter((id) =>
+        this.selectedRowIds.includes(id)
+      );
+      return selectedOnPage.length > 0 && selectedOnPage.length < pageIds.length;
+    },
   },
   components: {
     "file-uploader": {
@@ -201,6 +295,64 @@ ordercapture_ocr.components.Dashboard = {
     },
   },
   methods: {
+    toggleRowSelection(orderId) {
+      const idx = this.selectedRowIds.indexOf(orderId);
+      if (idx >= 0) {
+        this.selectedRowIds.splice(idx, 1);
+      } else {
+        this.selectedRowIds.push(orderId);
+      }
+    },
+    toggleSelectAll() {
+      const pageIds = this.recentOrders.map((o) => o.id);
+      const allSelected = pageIds.every((id) =>
+        this.selectedRowIds.includes(id)
+      );
+      if (allSelected) {
+        this.selectedRowIds = this.selectedRowIds.filter(
+          (id) => !pageIds.includes(id)
+        );
+      } else {
+        pageIds.forEach((id) => {
+          if (!this.selectedRowIds.includes(id)) {
+            this.selectedRowIds.push(id);
+          }
+        });
+      }
+    },
+    onSearchInput() {
+      if (this.searchDebounceTimer) clearTimeout(this.searchDebounceTimer);
+      this.searchDebounceTimer = setTimeout(() => {
+        this.currentPage = 1;
+        this.fetchRecentOrders();
+      }, 300);
+    },
+    onFilterChange() {
+      this.currentPage = 1;
+      this.fetchRecentOrders();
+    },
+    goToPage(page) {
+      this.currentPage = Math.max(1, Math.min(this.totalPages, page));
+      this.fetchRecentOrders();
+    },
+    processBulkFiles() {
+      if (!this.selectedRowIds.length) {
+        frappe.msgprint("Please select at least one file to process.");
+        return;
+      }
+      if (!this.selectedCustomer) {
+        frappe.msgprint("Please select a customer first.");
+        return;
+      }
+      frappe.call({
+        method: "ordercapture_ocr.api.process_bulk_files",
+        args: { doc_ids: this.selectedRowIds },
+        callback: (r) => {
+          this.selectedRowIds = [];
+          this.fetchRecentOrders();
+        },
+      });
+    },
     openSalesOrder(salesId) {
       window.open(`/app/sales-order/${salesId}`, "_blank");
     },
@@ -214,28 +366,27 @@ ordercapture_ocr.components.Dashboard = {
     },
     fetchStats() {},
     fetchRecentOrders() {
+      this.loading = true;
       frappe.call({
-        method: "frappe.client.get_list",
+        method: "ordercapture_ocr.api.get_ocr_documents",
         args: {
-          doctype: "OCR Document Processor",
-          filters: [["date", "=", new Date().toISOString().split("T")[0]]],
-          fields: [
-            "name as id",
-            "creation as date",
-            "file_path",
-            "sales_order as sales",
-            "request_header as processed",
-            "status",
-            "customer",
-          ],
-          order_by: "creation desc",
-          limit: 50,
+          date: new Date().toISOString().split("T")[0],
+          limit: this.pageSize,
+          offset: (this.currentPage - 1) * this.pageSize,
+          search: this.searchQuery,
+          file_type: this.fileTypeFilter,
         },
         callback: (r) => {
-          this.recentOrders = r.message.map((order) => ({
+          const result = r.message || {};
+          this.recentOrders = (result.data || []).map((order) => ({
             ...order,
             actions: order.status === "Failed" ? "Retry" : "Done",
           }));
+          this.totalCount = result.total || 0;
+          this.loading = false;
+        },
+        error: () => {
+          this.loading = false;
         },
       });
     },
@@ -263,6 +414,7 @@ ordercapture_ocr.components.Dashboard = {
       });
       this.uploading = false;
       this.uploadProgress = 0;
+      this.currentPage = 1;
       this.fetchRecentOrders();
     },
     handleFile(file) {
@@ -297,6 +449,7 @@ ordercapture_ocr.components.Dashboard = {
                 },
                 callback: (r) => {
                   resolve();
+                  vm.currentPage = 1;
                   vm.fetchRecentOrders();
                 },
                 error: (r) => {
@@ -402,29 +555,20 @@ ordercapture_ocr.components.Dashboard = {
       });
     },
     clearAllFiles() {
-      frappe.confirm("Are you sure you want to delete all files?", () => {
-        const promises = this.recentOrders.map((order) => {
-          return frappe.call({
-            method: "frappe.client.delete",
-            args: {
-              doctype: "OCR Document Processor",
-              name: order.id,
-            },
-          });
-        });
-
-        Promise.all(promises).then(() => {
-          frappe.show_alert({
-            message: "All files deleted successfully",
-            indicator: "green",
-          });
-          this.fetchRecentOrders();
-          // Reset the file input
-          const fileInput = this.$el.querySelector('input[type="file"]');
-          if (fileInput) {
-            console.log(fileInput);
-            fileInput.value = "";
-          }
+      frappe.confirm("Are you sure you want to delete all files for today?", () => {
+        frappe.call({
+          method: "ordercapture_ocr.api.delete_all_ocr_documents_for_date",
+          args: {
+            date: new Date().toISOString().split("T")[0],
+          },
+          callback: (r) => {
+            frappe.show_alert({
+              message: "All files deleted successfully",
+              indicator: "green",
+            });
+            this.currentPage = 1;
+            this.fetchRecentOrders();
+          },
         });
       });
     },
@@ -452,6 +596,7 @@ ordercapture_ocr.components.Dashboard = {
               this.uploadStatus =
                 "File uploaded and document created successfully";
               this.fetchStats();
+              this.currentPage = 1;
               this.fetchRecentOrders();
             },
           });

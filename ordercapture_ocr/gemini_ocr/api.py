@@ -15,7 +15,7 @@ api_key = frappe.db.get_value("Order Capture OCR Configuration",None,"model_secr
 client = genai.Client(api_key=api_key)
 
 # Define the model you are going to use
-model_id = ocr_config.gemini_model  # "gemini-2.0-flash"  or "gemini-2.0-flash-lite-preview-02-05"  , "gemini-2.0-pro-exp-02-05"
+model_id = ocr_config.gemini_model  or "gemini-2.0-flash"  #or "gemini-2.0-flash-lite-preview-02-05"  , "gemini-2.0-pro-exp-02-05"
 
 
 class items(BaseModel):

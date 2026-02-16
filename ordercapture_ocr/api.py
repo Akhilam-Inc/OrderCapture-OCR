@@ -18,6 +18,106 @@ from ordercapture_ocr.ordercapture_ocr.ocr_processor.structure_data_with_llm imp
 
 
 @frappe.whitelist()
+def get_ocr_documents(date=None, limit=10, offset=0, search="", file_type="all"):
+    """
+    Get OCR Document Processor list for the dashboard with server-side pagination.
+    Returns documents for the given date (default: today) with pagination, search, and filter.
+
+    Args:
+        date: Filter by date (default: today)
+        limit: Page size (default: 10)
+        offset: Number of records to skip (default: 0)
+        search: Search in file_path and name (optional)
+        file_type: Filter by file type - all, pdf, excel, csv (default: all)
+
+    Returns:
+        dict: { "data": [...], "total": N }
+    """
+    from frappe.query_builder import DocType
+    from frappe.query_builder.functions import Count
+    from frappe.utils import today
+
+    if not date:
+        date = today()
+
+    limit = int(limit)
+    offset = int(offset)
+    search = (search or "").strip()
+    file_type = (file_type or "all").lower() if file_type else "all"
+
+    ocr_doc = DocType("OCR Document Processor")
+
+    # Build data query
+    data_query = (
+        frappe.qb.from_(ocr_doc)
+        .select(
+            ocr_doc.name.as_("id"),
+            ocr_doc.creation.as_("date"),
+            ocr_doc.file_path,
+            ocr_doc.sales_order.as_("sales"),
+            ocr_doc.request_header.as_("processed"),
+            ocr_doc.status,
+            ocr_doc.customer,
+        )
+        .where(ocr_doc.date == date)
+        .orderby(ocr_doc.creation, order=frappe.qb.desc)
+        .limit(limit)
+        .offset(offset)
+    )
+
+    # Build count query
+    count_query = (
+        frappe.qb.from_(ocr_doc)
+        .select(Count(ocr_doc.name))
+        .where(ocr_doc.date == date)
+    )
+
+    search_term = f"%{search}%" if search else None
+
+    def apply_filters(q):
+        if search_term:
+            q = q.where(
+                (ocr_doc.file_path.like(search_term)) | (ocr_doc.name.like(search_term))
+            )
+        if file_type == "pdf":
+            q = q.where(ocr_doc.file_path.like("%.pdf"))
+        elif file_type == "excel":
+            q = q.where(
+                (ocr_doc.file_path.like("%.xlsx")) | (ocr_doc.file_path.like("%.xls"))
+            )
+        elif file_type == "csv":
+            q = q.where(ocr_doc.file_path.like("%.csv"))
+        return q
+
+    data_query = apply_filters(data_query)
+    count_query = apply_filters(count_query)
+
+    docs = data_query.run(as_dict=True)
+    total = count_query.run()[0][0]
+
+    return {"data": docs, "total": total}
+
+
+@frappe.whitelist()
+def delete_all_ocr_documents_for_date(date=None):
+    """Delete all OCR Document Processor documents for the given date (default: today)."""
+    from frappe.utils import today
+
+    if not date:
+        date = today()
+
+    names = frappe.get_all(
+        "OCR Document Processor",
+        filters={"date": date},
+        pluck="name",
+    )
+    for name in names:
+        frappe.delete_doc("OCR Document Processor", name)
+    frappe.db.commit()
+    return {"deleted": len(names)}
+
+
+@frappe.whitelist()
 def extract_purchase_order_data(file_path: str, vendor_type: str) -> dict:
     """
     Extracts structured purchase order data from an Excel file.
@@ -602,6 +702,101 @@ def prepare_dynamic_prompt():
     except Exception as e:
         frappe.log_error(f"Error preparing dynamic prompt: {str(e)}")
         return get_default_prompt()
+
+
+@frappe.whitelist()
+def process_bulk_files(doc_ids):
+    """
+    Enqueue multiple OCR documents for background processing.
+    doc_ids: JSON string or list of OCR Document Processor document names.
+    """
+    if isinstance(doc_ids, str):
+        doc_ids = json.loads(doc_ids)
+    if not doc_ids:
+        frappe.throw(_("No documents selected for processing"))
+
+    for doc_name in doc_ids:
+        frappe.enqueue(
+            method="ordercapture_ocr.api.process_single_document",
+            queue="long",
+            timeout=600,
+            doc_name=doc_name,
+        )
+
+    frappe.msgprint(
+        _("Processing {0} file(s) in background. You will be notified when complete.").format(
+            len(doc_ids)
+        ),
+        indicator="blue",
+        alert=True,
+    )
+    return {"enqueued": len(doc_ids)}
+
+
+def process_single_document(doc_name):
+    """
+    Process a single OCR Document Processor document. Called via frappe.enqueue.
+    """
+    try:
+        doc = frappe.get_doc("OCR Document Processor", doc_name)
+        if not doc.file_path:
+            frappe.db.set_value(
+                "OCR Document Processor", doc_name, "status", "Failed"
+            )
+            frappe.db.commit()
+            return
+
+        file_path = doc.file_path
+        customer = doc.customer or ""
+        vendor_type = doc.vendor_type or "BB"
+
+        ocr_model = frappe.db.get_single_value(
+            "Order Capture OCR Configuration", "ocr_model"
+        )
+        file_extension = file_path.split(".")[-1].lower() if file_path else ""
+
+        result = None
+        if file_extension == "pdf":
+            if ocr_model == "Gemini":
+                from ordercapture_ocr.gemini_ocr.api import extract_structured_data
+
+                result = extract_structured_data(
+                    file_path=file_path, customer=customer
+                )
+            else:
+                result = get_ocr_details(
+                    file_path=file_path, customer=customer
+                )
+        else:
+            result = extract_purchase_order_data(
+                file_path=file_path, vendor_type=vendor_type
+            )
+
+        if result and result.get("orderDetails"):
+            frappe.db.set_value(
+                "OCR Document Processor",
+                doc_name,
+                {
+                    "processed_json": json.dumps(result),
+                    "customer_address": doc.customer_address,
+                    "status": "Processed",
+                },
+            )
+            frappe.db.commit()
+        else:
+            frappe.db.set_value(
+                "OCR Document Processor", doc_name, "status", "Failed"
+            )
+            frappe.db.commit()
+    except Exception as e:
+        frappe.log_error(
+            title=f"Bulk OCR Processing Error: {doc_name}",
+            message=frappe.get_traceback(),
+        )
+        frappe.db.set_value(
+            "OCR Document Processor", doc_name, "status", "Failed"
+        )
+        frappe.db.commit()
 
 
 def get_default_prompt():
