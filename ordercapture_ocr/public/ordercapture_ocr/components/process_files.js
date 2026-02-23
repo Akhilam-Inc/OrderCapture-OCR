@@ -953,7 +953,10 @@ ordercapture_ocr.process_dialog = {
             ? JSON.parse(processed_json)
             : processed_json;
       } catch (e) {
-        console.error("Invalid processed_json passed to setTableFromProcessedJson", e);
+        console.error(
+          "Invalid processed_json passed to setTableFromProcessedJson",
+          e
+        );
         return;
       }
 
@@ -978,26 +981,28 @@ ordercapture_ocr.process_dialog = {
       }
 
       // Manually add rows to data array since cannot_add_rows is true
-      const rows = orderDetails.map((item, idx) => {
-        if (!item || typeof item !== "object") {
-          return null;
-        }
+      const rows = orderDetails
+        .map((item, idx) => {
+          if (!item || typeof item !== "object") {
+            return null;
+          }
 
-        // Create row object with proper structure
-        const rowIdx = idx + 1;
-        return {
-          idx: rowIdx,
-          __islocal: true,
-          itemCode: item.itemCode || "",
-          itemName: item.itemName || "",
-          qty: item.qty || 0,
-          rate: item.rate || 0,
-          plRate: item.plRate || 0,
-          gst: item.gst || 0,
-          totalAmount: item.totalAmount || 0,
-          landing_rate: item.landing_rate || 0,
-        };
-      }).filter(row => row !== null);
+          // Create row object with proper structure
+          const rowIdx = idx + 1;
+          return {
+            idx: rowIdx,
+            __islocal: true,
+            itemCode: item.itemCode || "",
+            itemName: item.itemName || "",
+            qty: item.qty || 0,
+            rate: item.rate || 0,
+            plRate: item.plRate || 0,
+            gst: item.gst || 0,
+            totalAmount: item.totalAmount || 0,
+            landing_rate: item.landing_rate || 0,
+          };
+        })
+        .filter((row) => row !== null);
 
       // Set the data arrays
       d.fields_dict.items.df.data = rows;
@@ -1005,7 +1010,7 @@ ordercapture_ocr.process_dialog = {
 
       // Refresh grid and set totals
       d.fields_dict.items.grid.refresh();
-      
+
       // Add rate comparison and highlighting after grid is fully rendered
       setTimeout(() => {
         d.fields_dict.items.grid.data.forEach((row, idx) => {
@@ -1019,7 +1024,7 @@ ordercapture_ocr.process_dialog = {
           }
         });
       }, 100);
-      
+
       // Set initial data and bind change handler
       initial_table_data = JSON.stringify(d.fields_dict.items.grid.data);
 
@@ -1047,25 +1052,25 @@ ordercapture_ocr.process_dialog = {
       d.set_value("po_expiry_date", formattedExpiryDate);
       // Use totals from processed_data if available, otherwise calculate from table data
       let total_item_qty, item_grand_total;
-      
-      if (processed_data.totals && processed_data.totals.totalItemQty !== undefined) {
+
+      if (
+        processed_data.totals &&
+        processed_data.totals.totalItemQty !== undefined
+      ) {
         // Use totals from processed JSON
         total_item_qty = processed_data.totals.totalItemQty;
         item_grand_total = processed_data.totals.itemGrandTotal || 0;
       } else {
         // Calculate totals from table data as fallback
         const items = d.fields_dict.items.grid.data;
-        total_item_qty = items.reduce(
-          (sum, item) => sum + (item.qty || 0),
-          0
-        );
+        total_item_qty = items.reduce((sum, item) => sum + (item.qty || 0), 0);
         item_grand_total = Number(
           items
             .reduce((sum, item) => sum + (Number(item.totalAmount) || 0), 0)
             .toFixed(2)
         );
       }
-      
+
       // Sets the calculated values
       d.set_value("total_item_qty", total_item_qty);
       d.set_value("item_grand_total", item_grand_total);
