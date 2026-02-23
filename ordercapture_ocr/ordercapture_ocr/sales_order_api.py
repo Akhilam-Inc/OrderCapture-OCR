@@ -127,15 +127,15 @@ def parse_iso_date(date_string):
 
 @frappe.whitelist()
 def create_sales_order(response, file_path=None, ocr_doc_name=None):
-    source_warehouse = frappe.db.get_single_value(
-        "Order Capture OCR Configuration", "source_warehouse_for_sales_order"
-    )
-    if not source_warehouse:
-        frappe.throw(
-            _(
-                "Please set Source Warehouse for Sales Order in Order Capture OCR Configuration"
-            )
-        )
+    # source_warehouse = frappe.db.get_single_value(
+    #     "Order Capture OCR Configuration", "source_warehouse_for_sales_order"
+    # )
+    # if not source_warehouse:
+    #     frappe.throw(
+    #         _(
+    #             "Please set Source Warehouse for Sales Order in Order Capture OCR Configuration"
+    #         )
+    #     )
     try:
         if isinstance(response, str):
             response = frappe.parse_json(response)
@@ -189,7 +189,6 @@ def create_sales_order(response, file_path=None, ocr_doc_name=None):
                 "shipping_address_name": customer_address,
                 "company": defaultCompany,
                 "delivery_date": frappe.utils.nowdate(),
-                "set_warehouse": source_warehouse,
                 "po_no": po_number,
                 "po_date": po_date,
                 "currency": currency,
@@ -263,7 +262,7 @@ def create_sales_order(response, file_path=None, ocr_doc_name=None):
             item_data = {
                 "item_code": mapped_item_code,
                 "qty": item.get("qty"),
-                "warehouse": source_warehouse,
+                # "warehouse": source_warehouse,
             }
 
             # Set price_list_rate from ERPNext, not from document
