@@ -10,11 +10,12 @@ from pydantic import BaseModel, Field, create_model
 
 # Create a client
 ocr_config = frappe.get_single("Order Capture OCR Configuration")
-api_key = ocr_config.get_password("gemini_api_secret")
+#api_key = ocr_config.get_password("gemini_api_secret")
+api_key = frappe.db.get_value("Order Capture OCR Configuration",None,"model_secret")
 client = genai.Client(api_key=api_key)
 
 # Define the model you are going to use
-model_id = ocr_config.gemini_model  # "gemini-2.0-flash"  or "gemini-2.0-flash-lite-preview-02-05"  , "gemini-2.0-pro-exp-02-05"
+model_id = ocr_config.gemini_model  or "gemini-2.0-flash"   # "gemini-2.0-flash"  or "gemini-2.0-flash-lite-preview-02-05"  , "gemini-2.0-pro-exp-02-05"
 
 
 class items(BaseModel):
