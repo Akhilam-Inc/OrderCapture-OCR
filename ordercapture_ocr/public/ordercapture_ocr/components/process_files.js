@@ -947,6 +947,10 @@ ordercapture_ocr.process_dialog = {
       d.fields_dict.items.grid.data = [];
       d.fields_dict.items.grid.make_head();
 
+      if (!Array.isArray(processed_data.orderDetails)) {
+        processed_data.orderDetails = [];
+      }
+
       if (processed_data.orderDetails.length > 0) {
         d.$wrapper.find(".post-sales-order-btn").show();
         d.$wrapper.find(".save-changes-btn").show();
@@ -963,11 +967,18 @@ ordercapture_ocr.process_dialog = {
 
       // Add rows from processed_json
       processed_data.orderDetails.forEach((item) => {
-        let row = d.fields_dict.items.df.data;
-        d.fields_dict.items.grid.add_new_row();
+        if (!item || typeof item !== "object") return;
+
+        const maybeNewRow = d.fields_dict.items.grid.add_new_row();
         const currentIndex = d.fields_dict.items.df.data.length - 1;
-        row =
+
+        // In Dialog grids, add_new_row may or may not return the row object reliably.
+        const row =
+          maybeNewRow ||
           d.fields_dict.items.df.data[d.fields_dict.items.df.data.length - 1];
+
+        if (!row) return;
+
         Object.assign(row, item);
 
         // // Add rate comparison and highlighting
