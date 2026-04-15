@@ -4,7 +4,7 @@ frappe.provide("ordercapture_ocr.components.save_handler");
 
 ordercapture_ocr.components.save_handler = {
   saveChanges: (d) => {
-    const items = d.fields_dict.items.grid.data;
+    const items = d.fields_dict.items.grid.get_data() || [];
     const processed_data = {
       customerDetails: {
         customer: d.get_value("customer"),

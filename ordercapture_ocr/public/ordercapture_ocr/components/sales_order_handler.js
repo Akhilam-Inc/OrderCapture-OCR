@@ -4,7 +4,7 @@ frappe.provide("ordercapture_ocr.components.sales_order_handler");
 
 ordercapture_ocr.components.sales_order_handler = {
   postSalesOrder: (d) => {
-    const items_data = d.fields_dict.items.grid.data;
+    const items_data = d.fields_dict.items.grid.get_data() || [];
     frappe.call({
       method:
         "ordercapture_ocr.ordercapture_ocr.sales_order_api.create_sales_order",

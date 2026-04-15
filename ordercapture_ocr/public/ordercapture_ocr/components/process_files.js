@@ -161,7 +161,7 @@ ordercapture_ocr.process_dialog = {
           fieldtype: "Table",
           label: "Items",
           // columns: 7,
-          cannot_add_rows: true,
+          // cannot_add_rows: true,
           fields: [
             {
               fieldname: "itemCode",
@@ -290,15 +290,40 @@ ordercapture_ocr.process_dialog = {
       ],
     });
 
+    const bind_items_grid_change_tracking = () => {
+      initial_table_data = JSON.stringify(d.fields_dict.items.grid.get_data() || []);
+
+      d.fields_dict.items.grid.wrapper.off("change").on("change", () => {
+        const current_table_data = JSON.stringify(
+          d.fields_dict.items.grid.get_data() || []
+        );
+
+        if (current_table_data !== initial_table_data) {
+          d.$wrapper.find(".post-sales-order-btn").prop("disabled", true);
+          d.$wrapper.find(".save-changes-btn").show();
+        } else {
+          d.$wrapper.find(".post-sales-order-btn").prop("disabled", false);
+        }
+      });
+    };
+
+    const setTableFromProcessedJson = (processed_json) => {
+      ordercapture_ocr.components.table_handler.setTableFromProcessedJson(
+        d,
+        processed_json,
+        {
+          after_refresh: bind_items_grid_change_tracking,
+        }
+      );
+    };
+
     // Add navigation events
     d.events = {
       next: function () {
         if (currentIndex < documents.length - 1) {
           currentIndex++;
           // Clear table first
-          d.fields_dict.items.df.data = [];
-          d.fields_dict.items.grid.data = [];
-          d.fields_dict.items.grid.refresh();
+          ordercapture_ocr.components.table_handler.reset_items_table(d);
           d.set_value("po_number", "");
           d.set_value("po_date", "");
           d.set_value("po_expiry_date", "");
@@ -311,9 +336,7 @@ ordercapture_ocr.process_dialog = {
         if (currentIndex > 0) {
           currentIndex--;
           // Clear table first
-          d.fields_dict.items.df.data = [];
-          d.fields_dict.items.grid.data = [];
-          d.fields_dict.items.grid.refresh();
+          ordercapture_ocr.components.table_handler.reset_items_table(d);
           d.set_value("po_number", "");
           d.set_value("po_date", "");
           d.set_value("po_expiry_date", "");
@@ -381,7 +404,7 @@ ordercapture_ocr.process_dialog = {
         }
 
         if (doc.processed_json) {
-          setTableFromProcessedJson(d, doc.processed_json);
+          setTableFromProcessedJson(doc.processed_json);
           d.$wrapper.find(".fetch_price_list_rate").show();
         } else {
           d.$wrapper.find(".post-sales-order-btn").hide();
@@ -394,7 +417,7 @@ ordercapture_ocr.process_dialog = {
     };
 
     d.events.update_rate = function () {
-      const items = d.fields_dict.items.grid.data;
+      const items = d.fields_dict.items.grid.get_data() || [];
       if (items.length === 0) {
         frappe.show_alert({
           message: "No items, process files first...",
@@ -624,7 +647,7 @@ ordercapture_ocr.process_dialog = {
                 },
               },
               callback: () => {
-                setTableFromProcessedJson(d, JSON.stringify(r.message));
+                setTableFromProcessedJson(JSON.stringify(r.message));
               },
             });
           } else {
@@ -883,7 +906,7 @@ ordercapture_ocr.process_dialog = {
 
     // Save Changes
     d.events.save_changes = function () {
-      const items = d.fields_dict.items.grid.data;
+      const items = d.fields_dict.items.grid.get_data() || [];
       if (items.length === 0) {
         frappe.show_alert({
           message: "Please add items to save changes.",
@@ -929,7 +952,7 @@ ordercapture_ocr.process_dialog = {
           },
         },
         callback: (r) => {
-          setTableFromProcessedJson(d, JSON.stringify(processed_data));
+          setTableFromProcessedJson(JSON.stringify(processed_data));
 
           d.$wrapper.find(".post-sales-order-btn").prop("disabled", false);
           frappe.show_alert({
@@ -940,132 +963,13 @@ ordercapture_ocr.process_dialog = {
       });
     };
 
-    const setTableFromProcessedJson = (d, processed_json) => {
-      const processed_data = JSON.parse(processed_json);
-
-      d.fields_dict.items.df.data = [];
-      d.fields_dict.items.grid.data = [];
-      d.fields_dict.items.grid.make_head();
-
-      if (!Array.isArray(processed_data.orderDetails)) {
-        processed_data.orderDetails = [];
-      }
-
-      if (processed_data.orderDetails.length > 0) {
-        d.$wrapper.find(".post-sales-order-btn").show();
-        d.$wrapper.find(".save-changes-btn").show();
-        d.$wrapper.find(".fetch_price_list_rate").show();
-        d.$wrapper.find(".update-rate-btn").show();
-      } else {
-        d.$wrapper.find(".post-sales-order-btn").hide();
-        d.$wrapper.find(".save-changes-btn").hide();
-        d.$wrapper.find(".fetch_price_list_rate").hide();
-        d.$wrapper.find(".update-rate-btn").hide();
-      }
-
-      d.fields_dict.items.grid.refresh();
-
-      // Add rows from processed_json
-      processed_data.orderDetails.forEach((item) => {
-        if (!item || typeof item !== "object") return;
-
-        const maybeNewRow = d.fields_dict.items.grid.add_new_row();
-        const currentIndex = d.fields_dict.items.df.data.length - 1;
-
-        // In Dialog grids, add_new_row may or may not return the row object reliably.
-        const row =
-          maybeNewRow ||
-          d.fields_dict.items.df.data[d.fields_dict.items.df.data.length - 1];
-
-        if (!row) return;
-
-        Object.assign(row, item);
-
-        // // Add rate comparison and highlighting
-        if (row.rate !== row.plRate) {
-          d.fields_dict.items.grid.grid_rows[currentIndex].row.addClass(
-            "highlight-red"
-          );
-        } else {
-          d.fields_dict.items.grid.grid_rows[currentIndex].row.addClass(
-            "highlight-white"
-          );
-        }
-      });
-
-      // Refresh grid and set totals
-      d.fields_dict.items.grid.refresh();
-      // Set initial data and bind change handler
-      initial_table_data = JSON.stringify(d.fields_dict.items.grid.data);
-
-      d.fields_dict.items.grid.wrapper.off("change").on("change", () => {
-        let current_table_data = JSON.stringify(d.fields_dict.items.grid.data);
-
-        if (current_table_data !== initial_table_data) {
-          d.$wrapper.find(".post-sales-order-btn").prop("disabled", true);
-          d.$wrapper.find(".save-changes-btn").show();
-        } else {
-          d.$wrapper.find(".post-sales-order-btn").prop("disabled", false);
-        }
-      });
-
-      // Convert orderDate to YYYY-MM-DD format
-      const date = new Date(processed_data.orderDate);
-      const formattedDate = date.toISOString().slice(0, 10);
-
-      const Expirydate = new Date(processed_data.orderExpiryDate);
-      const formattedExpiryDate = Expirydate.toISOString().slice(0, 10);
-
-      d.set_value("po_date", formattedDate);
-      d.set_value("po_number", processed_data.orderNumber);
-      // d.set_value('po_date', processed_data.orderDate);
-      d.set_value("po_expiry_date", formattedExpiryDate);
-      // Calculate totals from table data
-      const items = d.fields_dict.items.grid.data;
-      const total_item_qty = items.reduce(
-        (sum, item) => sum + (item.qty || 0),
-        0
-      );
-
-      const item_grand_total = Number(
-        items
-          .reduce((sum, item) => sum + (Number(item.totalAmount) || 0), 0)
-          .toFixed(2)
-      );
-      // Sets the calculated values
-      d.set_value("total_item_qty", total_item_qty);
-      d.set_value("item_grand_total", item_grand_total);
-
-      // Calculate total net amount (sum of rates without taxes)
-      const total_net_amount = processed_data.orderDetails
-        .reduce((sum, item) => {
-          return sum + Number(item.totalAmount);
-        }, 0)
-        .toFixed(2);
-
-      // console.log();
-      // Set the total net amount field
-      d.set_value("total_net_amount", total_net_amount);
-
-      // Calculate total taxes
-      const total_taxes = processed_data.orderDetails
-        .reduce((sum, item) => {
-          const gst_value = parseFloat(item.gst) || 0;
-          return Number(sum + (item.rate * item.qty * gst_value) / 100);
-        }, 0)
-        .toFixed(2);
-
-      // Set the total taxes field
-      d.set_value("total_taxes", total_taxes);
-    };
-
     d.events.post_sales_order = function () {
       if (d.is_submitting) return;
       d.is_submitting = true;
 
       d.set_df_property("post_sales_order", "read_only", true);
 
-      const items_data = d.fields_dict.items.grid.data;
+      const items_data = d.fields_dict.items.grid.get_data() || [];
       const po_number = d.get_value("po_number");
       const vendorIsFlipkart = d.get_value("vendor_type") === "FlipKart";
       const dateFormat = vendorIsFlipkart ? "YYYY-MM-DD" : undefined;
@@ -1207,7 +1111,7 @@ ordercapture_ocr.process_dialog = {
 
     d.events.fetch_price_list_rate = function () {
       const customer = d.get_value("customer");
-      const items = d.fields_dict.items.grid.data;
+      const items = d.fields_dict.items.grid.get_data() || [];
 
       if (items.length == 0) {
         frappe.show_alert({
@@ -1394,7 +1298,7 @@ ordercapture_ocr.process_dialog = {
 
     // Format Item Code Dialog
     d.events.show_format_dialog = function () {
-      const items = d.fields_dict.items.grid.data;
+      const items = d.fields_dict.items.grid.get_data() || [];
 
       if (items.length == 0) {
         frappe.show_alert({
@@ -1547,7 +1451,8 @@ ordercapture_ocr.process_dialog = {
           }
 
           // Apply changes to main dialog items
-          const items = formatDialog.mainDialog.fields_dict.items.grid.data;
+          const items =
+            formatDialog.mainDialog.fields_dict.items.grid.get_data() || [];
           let changesApplied = 0;
 
           items.forEach((item, index) => {
@@ -1612,7 +1517,20 @@ ordercapture_ocr.process_dialog = {
 // Create a function to refresh all totals
 // Create a function to refresh all totals
 function refreshTotalFields(d) {
-  const items = d.fields_dict.items.grid.data;
+  const items = d.fields_dict.items.grid.get_data() || [];
+
+  const parse_percent_like_number = (val) => {
+    if (val === undefined || val === null) return 0;
+    if (typeof val === "number" && !isNaN(val)) return val;
+
+    let s = String(val).trim();
+    if (!s) return 0;
+
+    s = s.replace(/,/g, "");
+    const m = s.match(/-?\d+(\.\d+)?/);
+    if (!m) return 0;
+    return flt(m[0]) || 0;
+  };
 
   // Calculate total item quantity
   const total_item_qty = items.reduce(
@@ -1623,16 +1541,17 @@ function refreshTotalFields(d) {
   // Calculate total net amount (sum of totalAmount from items)
   const total_net_amount = items
     .reduce((sum, item) => {
-      return sum + (Number(item.totalAmount) || 0);
+      return sum + (flt(item.totalAmount) || 0);
     }, 0)
     .toFixed(2);
 
   // Calculate total taxes
   const total_taxes = items
     .reduce((sum, item) => {
-      const gst_value = parseFloat(item.gst) || 0;
-      const amount =
-        ((Number(item.rate) || 0) * (Number(item.qty) || 0) * gst_value) / 100;
+      const gst_value = parse_percent_like_number(item.gst);
+      const rate = flt(item.rate) || flt(item.plRate) || 0;
+      const qty = flt(item.qty) || 0;
+      const amount = (rate * qty * gst_value) / 100;
       return sum + amount;
     }, 0)
     .toFixed(2);
@@ -1640,9 +1559,9 @@ function refreshTotalFields(d) {
   // Calculate grand total
   const item_grand_total = items
     .reduce((sum, item) => {
-      const qty = Number(item.qty) || 0;
-      const rate = Number(item.rate) || 0;
-      const gst = Number(item.gst) || 0;
+      const qty = flt(item.qty) || 0;
+      const rate = flt(item.rate) || flt(item.plRate) || 0;
+      const gst = parse_percent_like_number(item.gst);
       const amount = qty * rate + (qty * rate * gst) / 100;
       return sum + amount;
     }, 0)
@@ -1654,6 +1573,9 @@ function refreshTotalFields(d) {
   d.set_value("total_taxes", total_taxes);
   d.set_value("item_grand_total", item_grand_total);
 }
+
+// Used by shared helpers (e.g. `table_handler.js`) to keep totals logic consistent.
+window.refreshTotalFields = refreshTotalFields;
 
 function refreshPageInBackground() {
   // Create a hidden iframe
