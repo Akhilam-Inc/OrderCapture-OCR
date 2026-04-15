@@ -1,5 +1,6 @@
 import json
 import os
+import unicodedata
 from typing import List, Optional, get_type_hints
 
 import frappe
@@ -16,6 +17,19 @@ client = genai.Client(api_key=api_key)
 
 # Define the model you are going to use
 model_id = ocr_config.gemini_model  or "gemini-2.0-flash"   # "gemini-2.0-flash"  or "gemini-2.0-flash-lite-preview-02-05"  , "gemini-2.0-pro-exp-02-05"
+
+def _ascii_safe_display_name(file_path: str) -> str:
+    """
+    google-genai uses this value in request headers during upload.
+    httpx normalizes header values as ASCII, so any Unicode (e.g. en-dash “–”)
+    can crash the request build with UnicodeEncodeError.
+    """
+    base = os.path.basename(file_path)
+    stem = os.path.splitext(base)[0]
+    normalized = unicodedata.normalize("NFKD", stem)
+    ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
+    ascii_only = " ".join(ascii_only.split()).strip()
+    return ascii_only or "upload"
 
 
 class items(BaseModel):
@@ -230,7 +244,7 @@ def extract_structured_data(file_path, customer=None, model: BaseModel = Order):
 
         file = client.files.upload(
             file=file_path,
-            config={"display_name": file_path.split("/")[-1].split(".")[0]},
+            config={"display_name": _ascii_safe_display_name(file_path)},
         )
 
         # Generate a structured response using the Gemini API
