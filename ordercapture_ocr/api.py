@@ -263,13 +263,12 @@ def process_file():
     content = file.read()
     filename = file.filename
 
-    # Create a File document
+    # Create a File document (no parent doc yet — OCR record is created after upload)
     file_doc = frappe.new_doc("File")
     file_doc.file_name = filename
-    file_doc.attached_to_name = "Administrator"
     file_doc.content = content
     file_doc.is_private = 1
-    file_doc.attached_to_doctype = "OCR Document Processor"
+    file_doc.folder = "Home/OCR"
     file_doc.insert()
 
     try:

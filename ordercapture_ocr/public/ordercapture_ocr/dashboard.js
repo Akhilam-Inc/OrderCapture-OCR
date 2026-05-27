@@ -429,8 +429,11 @@ ordercapture_ocr.components.Dashboard = {
       });
     },
     initializeV15Uploader() {
+      if (!this.selectedCustomer) {
+        frappe.msgprint("Please select a customer");
+        return;
+      }
       const uploader = new frappe.ui.FileUploader({
-        doctype: "OCR Document Processor",
         folder: "Home/OCR",
         restrictions: {
           allowed_file_types: [".pdf", ".csv", ".xls", ".xlsx"],
