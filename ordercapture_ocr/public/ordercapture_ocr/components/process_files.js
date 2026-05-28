@@ -39,10 +39,16 @@ ordercapture_ocr.process_dialog = {
           read_only: 0,
           options: "Address",
           get_query: () => {
+            const customer = d.get_value("customer");
+            if (!customer) {
+              return {};
+            }
             return {
+              query:
+                "frappe.contacts.doctype.address.address.address_query",
               filters: {
                 link_doctype: "Customer",
-                link_name: d.get_value("customer"),
+                link_name: customer,
               },
             };
           },

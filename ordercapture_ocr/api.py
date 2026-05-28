@@ -332,26 +332,30 @@ def get_customer_addresses(customer_name):
     Returns:
         list: List of address documents with key details
     """
-    addresses = frappe.get_all(
-        "Address",
-        filters={"link_doctype": "Customer", "link_name": customer_name},
-        fields=[
-            "name",
-            "address_title",
-            "address_line1",
-            "address_line2",
-            "city",
-            "state",
-            "country",
-            "pincode",
-            "phone",
-            "email_id",
-            "is_primary_address",
-            "is_shipping_address",
-        ],
-    )
+    dl = frappe.qb.DocType("Dynamic Link")
+    addr = frappe.qb.DocType("Address")
 
-    return addresses
+    return (
+        frappe.qb.from_(addr)
+        .join(dl)
+        .on(dl.parent == addr.name)
+        .select(
+            addr.name,
+            addr.address_title,
+            addr.address_line1,
+            addr.address_line2,
+            addr.city,
+            addr.state,
+            addr.country,
+            addr.pincode,
+            addr.phone,
+            addr.email_id,
+            addr.is_primary_address,
+            addr.is_shipping_address,
+        )
+        .where((dl.link_doctype == "Customer") & (dl.link_name == customer_name))
+        .run(as_dict=True)
+    )
 
 
 @frappe.whitelist()
