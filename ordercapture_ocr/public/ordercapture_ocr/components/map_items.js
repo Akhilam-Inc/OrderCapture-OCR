@@ -1,4 +1,4 @@
-/* global frappe */
+/* global ordercapture_ocr */
 
 frappe.provide("ordercapture_ocr.map_items");
 
