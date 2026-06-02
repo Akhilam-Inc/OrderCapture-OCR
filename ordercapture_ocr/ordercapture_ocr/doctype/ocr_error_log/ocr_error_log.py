@@ -5,4 +5,4 @@ from frappe.model.document import Document
 
 
 class OCRErrorLog(Document):
-    pass
+	pass

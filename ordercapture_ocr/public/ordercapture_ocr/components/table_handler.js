@@ -42,8 +42,10 @@ ordercapture_ocr.components.table_handler = {
         customer.PONumber,
         customerDetails.poNumber,
         customerDetails.po_number,
-        processed_data.customerDetails && processed_data.customerDetails.poNumber,
-        processed_data.customerDetails && processed_data.customerDetails.po_number
+        processed_data.customerDetails &&
+          processed_data.customerDetails.poNumber,
+        processed_data.customerDetails &&
+          processed_data.customerDetails.po_number
       ),
       orderDate: this._first_non_empty_string(
         processed_data.orderDate,
@@ -56,7 +58,8 @@ ordercapture_ocr.components.table_handler = {
         customerDetails.poDate,
         customerDetails.po_date,
         customerDetails.orderDate,
-        processed_data.customerDetails && processed_data.customerDetails.orderDate,
+        processed_data.customerDetails &&
+          processed_data.customerDetails.orderDate,
         processed_data.customerDetails && processed_data.customerDetails.po_date
       ),
       orderExpiryDate: this._first_non_empty_string(
@@ -71,8 +74,10 @@ ordercapture_ocr.components.table_handler = {
         customerDetails.poExpiryDate,
         customerDetails.po_expiry_date,
         customerDetails.orderExpiryDate,
-        processed_data.customerDetails && processed_data.customerDetails.orderExpiryDate,
-        processed_data.customerDetails && processed_data.customerDetails.po_expiry_date
+        processed_data.customerDetails &&
+          processed_data.customerDetails.orderExpiryDate,
+        processed_data.customerDetails &&
+          processed_data.customerDetails.po_expiry_date
       ),
       customerName: this._first_non_empty_string(
         customer.customerName,
@@ -236,10 +241,16 @@ ordercapture_ocr.components.table_handler = {
 
     const rows = grid.get_data() || [];
     if (!processed_data.totals || processed_data.totals.totalItemQty == null) {
-      const total_item_qty = rows.reduce((sum, r) => sum + (flt(r.qty) || 0), 0);
+      const total_item_qty = rows.reduce(
+        (sum, r) => sum + (flt(r.qty) || 0),
+        0
+      );
       d.set_value("total_item_qty", total_item_qty);
     }
-    if (!processed_data.totals || processed_data.totals.itemGrandTotal == null) {
+    if (
+      !processed_data.totals ||
+      processed_data.totals.itemGrandTotal == null
+    ) {
       const item_grand_total = Number(
         rows.reduce((sum, r) => sum + (flt(r.totalAmount) || 0), 0).toFixed(2)
       );
@@ -247,8 +258,14 @@ ordercapture_ocr.components.table_handler = {
     }
 
     // Header fields + derived totals (matches process_files.js behavior)
-    if (processed_data.orderDate != null && String(processed_data.orderDate).trim() !== "") {
-      const formatted = this._format_date_to_yyyy_mm_dd(d, processed_data.orderDate);
+    if (
+      processed_data.orderDate != null &&
+      String(processed_data.orderDate).trim() !== ""
+    ) {
+      const formatted = this._format_date_to_yyyy_mm_dd(
+        d,
+        processed_data.orderDate
+      );
       if (formatted) d.set_value("po_date", formatted);
     }
     if (processed_data.orderNumber != null) {
