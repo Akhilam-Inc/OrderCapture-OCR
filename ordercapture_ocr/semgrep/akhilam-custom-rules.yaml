@@ -1,0 +1,209 @@
+rules:
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # AKH-01: No frappe.db.commit() in DocType controllers or @frappe.whitelist()
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  - id: akhilam-no-commit-in-controller
+    patterns:
+      - pattern: frappe.db.commit()
+      - pattern-inside: |
+          class $CLASS(Document):
+            ...
+    message: >
+      [AKH-01] frappe.db.commit() must not be called inside a DocType controller.
+      Frappe wraps every HTTP request in a single transaction. Calling commit()
+      mid-request can leave the database in a partially committed state on failure.
+      Use savepoints for partial isolation (AKH-03).
+      Valid locations for db.commit(): background job functions, data migration patches.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: akhilam-transaction-safety
+      references: akhilam-dev-standards/AKH-01
+
+  - id: akhilam-no-commit-in-whitelist
+    patterns:
+      - pattern: frappe.db.commit()
+      - pattern-inside: |
+          @frappe.whitelist(...)
+          def $FUNC(...):
+            ...
+    message: >
+      [AKH-01] frappe.db.commit() must not be called inside a @frappe.whitelist() API.
+      Frappe handles the transaction commit at the end of the HTTP request.
+      Move long-running work into frappe.enqueue() (AKH-04) and let Frappe commit.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: akhilam-transaction-safety
+      references: akhilam-dev-standards/AKH-01
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # AKH-02: No ORM calls inside for loops (N+1 query prevention)
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  - id: akhilam-no-get-doc-in-loop
+    patterns:
+      - pattern: |
+          for $VAR in $ITER:
+            ...
+            frappe.get_doc($DOCTYPE, $NAME)
+            ...
+    message: >
+      [AKH-02] frappe.get_doc() inside a loop causes N database queries (N+1 problem).
+      Batch-fetch all records before the loop using frappe.get_all() with
+      filters={"name": ["in", name_list]}, build a dict keyed by name,
+      then look up with dict.get() inside the loop (O(1) per lookup).
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: akhilam-performance
+      references: akhilam-dev-standards/AKH-02
+
+  - id: akhilam-no-get-all-in-loop
+    patterns:
+      - pattern: |
+          for $VAR in $ITER:
+            ...
+            frappe.get_all($DOCTYPE, ...)
+            ...
+    message: >
+      [AKH-02] frappe.get_all() inside a loop causes N database queries.
+      Move the frappe.get_all() call before the loop with a filters={"name": ["in", ...]}
+      batch fetch. Build a lookup dict and access it inside the loop.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: akhilam-performance
+      references: akhilam-dev-standards/AKH-02
+
+  - id: akhilam-no-db-get-value-in-loop
+    patterns:
+      - pattern: |
+          for $VAR in $ITER:
+            ...
+            frappe.db.get_value($DOCTYPE, $NAME, ...)
+            ...
+    message: >
+      [AKH-02] frappe.db.get_value() inside a loop causes N database queries.
+      Batch-fetch all needed values before the loop and build a lookup dict.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: akhilam-performance
+      references: akhilam-dev-standards/AKH-02
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # AKH-05: Type hints on all @frappe.whitelist() arguments
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  - id: akhilam-whitelist-untyped-bool-arg
+    patterns:
+      - pattern: |
+          @frappe.whitelist(...)
+          def $FUNC(..., $ARG, ...):
+            ...
+            if $ARG:
+              ...
+      - pattern-not: |
+          @frappe.whitelist(...)
+          def $FUNC(..., $ARG: $TYPE, ...):
+            ...
+    message: >
+      [AKH-05] @frappe.whitelist() argument '$ARG' has no type hint. All arguments
+      arrive as strings from HTTP requests. Without bool type hint, 'if arg:' will
+      evaluate "False" as truthy (non-empty string). Add explicit type hints:
+      def func(arg: bool, ...) so Frappe auto-casts the value.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: akhilam-api-correctness
+      references: akhilam-dev-standards/AKH-05
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # AKH-06: No bare except clauses
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  - id: akhilam-bare-except
+    pattern: |
+      try:
+        ...
+      except:
+        ...
+    message: >
+      [AKH-06] Bare except: clause catches all exceptions including SystemExit and
+      KeyboardInterrupt, masking real errors. Use a specific exception class:
+      except frappe.ValidationError, except Exception as e, etc.
+      Always log with frappe.log_error(frappe.get_traceback(), "context").
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: akhilam-code-quality
+      references: akhilam-dev-standards/AKH-06
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # AKH-08: No sandbox-unsafe code in Server Script files
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  - id: akhilam-server-script-os-import
+    patterns:
+      - pattern: import os
+      - pattern-inside: |
+          # server_script: ...
+          ...
+    message: >
+      [AKH-08] 'import os' is not available in Frappe's Server Script sandbox (safe_exec).
+      This will raise a NameError at runtime. Use Frappe's built-in utilities instead,
+      or move this logic into a controller or whitelisted API outside the sandbox.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: akhilam-server-script
+      references: akhilam-dev-standards/AKH-08
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # ADVISORY PATTERNS
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  - id: akhilam-frappe-log-error-without-traceback
+    pattern: frappe.log_error($MSG)
+    message: >
+      [AKH-ADVISORY] frappe.log_error() called without traceback. In most error handlers,
+      use frappe.log_error(frappe.get_traceback(), "descriptive title") to capture the
+      full stack trace for debugging. Single-argument form loses context.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: akhilam-observability
+
+  - id: akhilam-ignore-permissions-without-comment
+    patterns:
+      - pattern: $DOC.insert(ignore_permissions=True)
+      - pattern-not-inside: |
+          # $REASON
+          ...
+    message: >
+      [AKH-ADVISORY] insert(ignore_permissions=True) bypasses Frappe's permission system.
+      Add a comment explaining WHY this is necessary (e.g., # background job — no user session).
+      Unguarded permission bypass is a security risk if the calling context changes.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: akhilam-security
+
+  - id: akhilam-get-doc-in-validate
+    patterns:
+      - pattern: frappe.get_doc($DOCTYPE, $NAME)
+      - pattern-inside: |
+          def validate(self):
+            ...
+    message: >
+      [AKH-ADVISORY] frappe.get_doc() in validate() fetches a full document on every
+      save. If you only need field values, use frappe.db.get_value() instead.
+      If you need multiple fields, use frappe.db.get_value(..., as_dict=True).
+      Avoid full get_doc() in hot paths like validate().
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: akhilam-performance

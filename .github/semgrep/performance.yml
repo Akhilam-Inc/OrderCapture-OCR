@@ -1,0 +1,201 @@
+rules:
+  # ── N+1: DB / Doc Calls Inside Loops ────────────────────────────────────
+  # Akhilam Inc. — Custom Frappe Performance Rules
+
+  - id: frappe-get-doc-in-loop
+    patterns:
+      - pattern-inside: |
+          for $ITEM in ...:
+              ...
+      - pattern: frappe.get_doc(...)
+    message: |
+      N+1 Query [P-01]: `frappe.get_doc()` inside a loop loads the full document
+      (plus all child tables) for every iteration — one SELECT per row.
+      Fix: collect names first, then batch-fetch with
+        `frappe.get_all($DOCTYPE, filters={"name": ["in", names]}, fields=[...])`
+      or replace with `frappe.db.get_value()` if you only need one field.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: performance
+
+  - id: frappe-get-value-in-loop
+    patterns:
+      - pattern-inside: |
+          for $ITEM in ...:
+              ...
+      - pattern: frappe.db.get_value(...)
+    message: |
+      N+1 Query [P-02]: `frappe.db.get_value()` inside a loop issues one
+      SELECT per iteration. Batch-fetch before the loop:
+        `rows = frappe.get_all($DOCTYPE, filters={"name": ["in", names]}, fields=[...])`
+        `lookup = {r.name: r for r in rows}`
+      then read from the dict inside the loop.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: performance
+
+  - id: frappe-set-value-in-loop
+    patterns:
+      - pattern-inside: |
+          for $ITEM in ...:
+              ...
+      - pattern: frappe.db.set_value(...)
+    message: |
+      N+1 Write [P-03]: `frappe.db.set_value()` inside a loop issues one
+      UPDATE per iteration. Batch updates using a single parameterized
+      `frappe.db.sql()` or collect changes and write them after the loop.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: performance
+
+  - id: frappe-save-in-loop
+    patterns:
+      - pattern-inside: |
+          for $ITEM in ...:
+              ...
+      - pattern: $DOC.save(...)
+    message: |
+      N+1 Write [P-04]: `doc.save()` inside a loop triggers a full document
+      save (including all `on_update` hooks) per iteration. For bulk field
+      updates use `frappe.db.set_value()` or `frappe.db.sql()` instead.
+      Enqueue heavy processing as a background job.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: performance
+
+  - id: frappe-sendmail-in-loop
+    patterns:
+      - pattern-inside: |
+          for $ITEM in ...:
+              ...
+      - pattern: frappe.sendmail(...)
+    message: |
+      Blocking I/O in Loop [P-05]: `frappe.sendmail()` inside a loop blocks
+      the request thread for every recipient. Wrap each call in
+      `frappe.enqueue("frappe.core.doctype.communication.email.make", ...)`
+      or build a single digest email outside the loop.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: performance
+
+  - id: frappe-enqueue-in-loop
+    patterns:
+      - pattern-inside: |
+          for $ITEM in ...:
+              ...
+      - pattern: frappe.enqueue(...)
+    message: |
+      Job Flood [P-06]: `frappe.enqueue()` inside a loop creates N separate
+      background jobs, overwhelming the queue on large data sets.
+      Pass the full list to a single enqueued function that processes items
+      in one worker, or use `frappe.enqueue_many()`.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: performance
+
+  # ── Unbounded Fetches ────────────────────────────────────────────────────
+
+  - id: frappe-get-all-no-limit
+    patterns:
+      - pattern: frappe.get_all($DT, ...)
+      - pattern-not: frappe.get_all($DT, ..., limit=$LIMIT, ...)
+      - pattern-not: frappe.get_all($DT, ..., page_length=$LIMIT, ...)
+    message: |
+      Unbounded Fetch [P-07]: `frappe.get_all()` without a `limit` will load
+      every row in the table and can exhaust memory on large datasets.
+      Always pass `limit=N` or paginate using `limit_start` + `limit`.
+      If you genuinely need all rows, add `# nosemgrep` with a comment
+      explaining why (e.g. export job that streams results).
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: performance
+
+  - id: frappe-get-list-no-limit
+    patterns:
+      - pattern: frappe.get_list($DT, ...)
+      - pattern-not: frappe.get_list($DT, ..., limit=$LIMIT, ...)
+      - pattern-not: frappe.get_list($DT, ..., page_length=$LIMIT, ...)
+    message: |
+      Unbounded Fetch [P-08]: `frappe.get_list()` without a `limit` can return
+      every row in the table. Always specify `limit=N` to cap the result set.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: performance
+
+  - id: frappe-get-all-select-star
+    patterns:
+      - pattern: frappe.get_all($DT, ..., fields=["*"], ...)
+    message: |
+      SELECT * [P-09]: Fetching all fields is expensive on wide DocTypes with
+      many columns or large text fields. Pass an explicit `fields` list with
+      only the columns your code actually reads.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: performance
+
+  - id: frappe-get-list-select-star
+    patterns:
+      - pattern: frappe.get_list($DT, ..., fields=["*"], ...)
+    message: |
+      SELECT * [P-10]: Fetching all fields is expensive on wide DocTypes.
+      Pass an explicit `fields` list with only the columns your code reads.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: performance
+
+  # ── Count Anti-Pattern ───────────────────────────────────────────────────
+
+  - id: frappe-count-via-get-all
+    pattern-either:
+      - pattern: len(frappe.get_all(...))
+      - pattern: len(frappe.get_list(...))
+    message: |
+      Wasteful Count [P-11]: Fetching all rows just to count them loads
+      unnecessary data. Use `frappe.db.count($DOCTYPE, filters=...)` which
+      issues a lightweight `SELECT COUNT(*)` without loading any row data.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: performance
+
+  # ── Unnecessary Document Loads ───────────────────────────────────────────
+
+  - id: frappe-get-doc-for-existence-check
+    pattern-either:
+      - pattern: |
+          if frappe.get_doc(...):
+              ...
+      - pattern: |
+          if not frappe.get_doc(...):
+              ...
+    message: |
+      Expensive Existence Check [P-12]: Loading a full document just to test
+      whether it exists. Use `frappe.db.exists($DOCTYPE, name_or_filters)`
+      which issues a single lightweight `SELECT name` query.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: performance
+
+  - id: frappe-get-doc-for-delete
+    pattern: |
+      $DOC = frappe.get_doc(...)
+      $DOC.delete(...)
+    message: |
+      Unnecessary Load Before Delete [P-13]: Loading the full document just
+      to immediately delete it. Use `frappe.delete_doc($DOCTYPE, $NAME)`
+      directly — it skips the full document load and all child table fetches.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: performance

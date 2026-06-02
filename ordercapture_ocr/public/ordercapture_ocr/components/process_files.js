@@ -44,8 +44,7 @@ ordercapture_ocr.process_dialog = {
               return {};
             }
             return {
-              query:
-                "frappe.contacts.doctype.address.address.address_query",
+              query: "frappe.contacts.doctype.address.address.address_query",
               filters: {
                 link_doctype: "Customer",
                 link_name: customer,
@@ -297,7 +296,9 @@ ordercapture_ocr.process_dialog = {
     });
 
     const bind_items_grid_change_tracking = () => {
-      initial_table_data = JSON.stringify(d.fields_dict.items.grid.get_data() || []);
+      initial_table_data = JSON.stringify(
+        d.fields_dict.items.grid.get_data() || []
+      );
 
       d.fields_dict.items.grid.wrapper.off("change").on("change", () => {
         const current_table_data = JSON.stringify(

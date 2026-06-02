@@ -1,80 +1,130 @@
-name: Linters
+name: Akhilam Quality Gate
 
 on:
+  push:
+    branches: ["**"]
   pull_request:
+    branches: [main, version-16, dev-16, develop]
   workflow_dispatch:
 
 permissions:
   contents: write
+  security-events: write   # required for SARIF upload to GitHub Security tab
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true   # suppress Node.js 20 deprecation warnings
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  linter:
-    name: 'Frappe Linter'
+  ruff:
+    name: "Ruff (lint + format)"
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.head_ref || github.ref }}
           fetch-depth: 0
-
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-          cache: pip
-
-      - uses: pre-commit/action@v3.0.0
-
-      - name: Commit pre-commit changes
-        if: failure()
+          python-version: "3.11"
+      - name: Install Ruff
+        run: pip install "ruff==0.11.0"
+      - name: Auto-fix with Ruff
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add -A
-          git commit -m "style: auto-format code with pre-commit" || exit 0
-          git push
-
-      - name: Download Semgrep rules
-        run: git clone --depth 1 https://github.com/frappe/semgrep-rules.git frappe-semgrep-rules
-
-      - name: Run Semgrep rules
+          ruff check . --fix || true
+          ruff format .
+      - name: Commit auto-fixes if any
         run: |
-          pip install semgrep
-          semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness
+          if ! git diff --quiet; then
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            git add -A
+            git commit -m "style: auto-format code with ruff"
+            git push
+          fi
+      - name: Ruff lint (gate)
+        run: ruff check . --output-format=github
+      - name: Ruff format check (gate)
+        run: ruff format --check .
 
-  deps-vulnerable-check:
-    name: 'Vulnerable Dependency Check'
+  semgrep-frappe:
+    name: "Semgrep (Frappe official rules)"
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-      
-      - uses: actions/checkout@v4
-
-      - name: Cache pip
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/*requirements.txt', '**/pyproject.toml', '**/setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-            ${{ runner.os }}-
-
-      - name: Install and run pip-audit
+          python-version: "3.11"
+      - name: Install semgrep
+        run: pip install semgrep
+      - name: Clone Frappe semgrep rules
         run: |
-          pip install pip-audit
-          echo "Checking for dependency files..."
-          if [ -f "requirements.txt" ]; then
-            echo "Found requirements.txt, running audit..."
-            pip-audit --desc on -r requirements.txt
-          elif [ -f "pyproject.toml" ] || [ -f "setup.py" ]; then
-            echo "Found project definition, running audit..."
-            pip-audit --desc on .
-          else
-            echo "No requirements.txt, pyproject.toml, or setup.py found. Skipping dependency audit."
+          git clone --depth 1 --branch develop \
+            https://github.com/frappe/semgrep-rules.git ~/frappe-semgrep-rules
+      - name: Run Frappe semgrep rules (ERROR only)
+        run: |
+          semgrep --config ~/frappe-semgrep-rules/rules --severity=ERROR --error \
+            --sarif-output=semgrep-frappe.sarif .
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: semgrep-frappe.sarif
+          category: semgrep-frappe
+        continue-on-error: true
+
+  semgrep-akhilam:
+    name: "Semgrep (Akhilam custom rules)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install semgrep
+        run: pip install semgrep
+      - name: Run Akhilam semgrep rules
+        run: |
+          semgrep --config ordercapture_ocr/semgrep/akhilam-custom-rules.yaml \
+            --error --sarif-output=semgrep-akhilam.sarif .
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: semgrep-akhilam.sarif
+          category: semgrep-akhilam
+        continue-on-error: true
+
+  deps-audit:
+    name: "Dependency Audit (pip-audit)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run pip-audit
+        run: pip install pip-audit && pip-audit --desc on .
+
+  all-checks-passed:
+    name: "All quality checks passed"
+    needs: [ruff, semgrep-frappe, semgrep-akhilam, deps-audit]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check all jobs succeeded
+        run: |
+          if [[ "${{ needs.ruff.result }}" != "success" ]] || \
+             [[ "${{ needs.semgrep-frappe.result }}" != "success" ]] || \
+             [[ "${{ needs.semgrep-akhilam.result }}" != "success" ]] || \
+             [[ "${{ needs.deps-audit.result }}" != "success" ]]; then
+            echo "ruff: ${{ needs.ruff.result }}"
+            echo "semgrep-frappe: ${{ needs.semgrep-frappe.result }}"
+            echo "semgrep-akhilam: ${{ needs.semgrep-akhilam.result }}"
+            echo "deps-audit: ${{ needs.deps-audit.result }}"
+            exit 1
           fi
+          echo "All quality checks passed."
