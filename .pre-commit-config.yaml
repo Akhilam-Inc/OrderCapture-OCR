@@ -1,69 +1,138 @@
-exclude: 'node_modules|.git'
-default_stages: [pre-commit]
-fail_fast: false
+# .pre-commit-config.yaml — Akhilam Inc.
+#
+# SETUP (one-time per developer machine):
+#   chmod +x install-hooks.sh && ./install-hooks.sh
+#
+# MANUAL RUN:
+#   pre-commit run --all-files
+#
+# UPDATE HOOK VERSIONS:
+#   pre-commit autoupdate
 
+default_stages: [pre-commit]
 
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
-    hooks:
-      - id: trailing-whitespace
-        files: "ordercapture_ocr.*"
-        exclude: ".*json$|.*txt$|.*csv|.*md|.*svg"
-      - id: check-merge-conflict
-      - id: check-ast
-      - id: check-json
-      - id: check-toml
-      - id: check-yaml
-      - id: debug-statements
 
+  # ─── 1. RUFF — linter + formatter ────────────────────────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.1
+    rev: v0.11.0
     hooks:
       - id: ruff
-        name: "Run ruff import sorter"
-        args: ["--select=I", "--fix"]
-
-      - id: ruff
-        name: "Run ruff linter"
-
+        name: "Ruff lint"
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python]
       - id: ruff-format
-        name: "Run ruff formatter"
+        name: "Ruff format"
+        types_or: [python]
 
+  # ─── 2. SEMGREP — Frappe official 46 rules ────────────────────────────────
+  # Requires: frappe-semgrep-rules cloned at ~/frappe-semgrep-rules
+  # Run: git clone --depth 1 --branch develop https://github.com/frappe/semgrep-rules.git ~/frappe-semgrep-rules
+  - repo: local
+    hooks:
+      - id: semgrep-frappe
+        name: "Semgrep — Frappe official rules (ERROR only)"
+        language: system
+        entry: semgrep
+        args:
+          - --config
+          - ~/frappe-semgrep-rules/rules
+          - --severity=ERROR
+          - --error
+          - --quiet
+        types_or: [python]
+        pass_filenames: true
+        stages: [pre-commit]
+
+  # ─── 3. SEMGREP — Akhilam custom rules (AKH-01 to AKH-08) ───────────────
+      - id: semgrep-akhilam
+        name: "Semgrep — Akhilam custom rules"
+        language: system
+        entry: semgrep
+        args:
+          - --config
+          - ordercapture_ocr/semgrep/akhilam-custom-rules.yaml
+          - --error
+          - --quiet
+        types_or: [python]
+        pass_filenames: true
+        stages: [pre-commit]
+
+  # ─── 4. SEMGREP — full app scan on pre-push ──────────────────────────────
+      - id: semgrep-akhilam-full
+        name: "Semgrep — Full app scan (pre-push)"
+        language: system
+        entry: semgrep
+        args:
+          - scan
+          - --config
+          - ordercapture_ocr/semgrep/akhilam-custom-rules.yaml
+          - --quiet
+          - ordercapture_ocr/
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+  # ─── 5. PRETTIER — JS / Vue / SCSS ───────────────────────────────────────
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v2.7.1
     hooks:
       - id: prettier
         types_or: [javascript, vue, scss]
-        # Ignore any files that might contain jinja / bundles
         exclude: |
-            (?x)^(
-                ordercapture_ocr/public/dist/.*|
-                .*node_modules.*|
-                .*boilerplate.*|
-                ordercapture_ocr/templates/includes/.*|
-                ordercapture_ocr/public/js/lib/.*
-            )$
+          (?x)^(
+            ordercapture_ocr/public/dist/.*|
+            .*node_modules.*|
+            .*boilerplate.*|
+            ordercapture_ocr/templates/includes/.*|
+            ordercapture_ocr/public/js/lib/.*
+          )$
 
-
+  # ─── 6. ESLINT ────────────────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: v8.44.0
     hooks:
       - id: eslint
         types_or: [javascript]
-        args: ['--quiet']
-        # Ignore any files that might contain jinja / bundles
+        args: [--quiet]
         exclude: |
-            (?x)^(
-                ordercapture_ocr/public/dist/.*|
-                cypress/.*|
-                .*node_modules.*|
-                .*boilerplate.*|
-                ordercapture_ocr/templates/includes/.*|
-                ordercapture_ocr/public/js/lib/.*
-            )$
+          (?x)^(
+            ordercapture_ocr/public/dist/.*|
+            cypress/.*|
+            .*node_modules.*|
+            .*boilerplate.*|
+            ordercapture_ocr/templates/includes/.*|
+            ordercapture_ocr/public/js/lib/.*
+          )$
+
+  # ─── 7. GENERAL HYGIENE ───────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: "Trim trailing whitespace"
+        files: "ordercapture_ocr.*"
+        exclude: ".*json$|.*txt$|.*csv|.*md|.*svg"
+      - id: end-of-file-fixer
+        name: "Ensure files end with newline"
+      - id: check-yaml
+        name: "Validate YAML files"
+      - id: check-json
+        name: "Validate JSON files"
+      - id: check-toml
+        name: "Validate TOML files"
+      - id: check-merge-conflict
+        name: "Check for merge conflict markers"
+      - id: check-added-large-files
+        name: "Block large file commits"
+        args: [--maxkb=500]
+      - id: debug-statements
+        name: "Block debug statements (pdb, breakpoint)"
+        types: [python]
+      - id: mixed-line-ending
+        args: [--fix=lf]
 
 ci:
-    autoupdate_schedule: weekly
-    skip: []
-    submodules: false
+  autoupdate_schedule: weekly
+  skip: [semgrep-frappe, semgrep-akhilam, semgrep-akhilam-full]
+  submodules: false
