@@ -182,7 +182,7 @@ app_include_js = [
 # Testing
 # -------
 
-# before_tests = "ordercapture_ocr.install.before_tests"
+before_tests = "ordercapture_ocr.ordercapture_ocr.tests.setup.before_tests"
 
 # Overriding Methods
 # ------------------------------
