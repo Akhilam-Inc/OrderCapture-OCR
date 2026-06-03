@@ -8,6 +8,7 @@ TEST_CUSTOMER_GROUP = "_Test OCR Customer Group"
 TEST_TERRITORY = "_Test OCR Territory"
 TEST_ITEM_GROUP = "_Test OCR Item Group"
 TEST_ITEM_CODE = "_Test OCR Item"
+DEFAULT_STOCK_UOM = "Nos"
 DEFAULT_ADDRESS_TEMPLATE = """{{ address_line1 }}<br>
 {% if address_line2 %}{{ address_line2 }}<br>{% endif -%}
 {{ city }}<br>
@@ -28,6 +29,7 @@ def ensure_test_site_masters():
 	_ensure_customer_group()
 	_ensure_territory()
 	_ensure_item_group()
+	_ensure_uom()
 	_masters_ready = True
 
 
@@ -185,6 +187,33 @@ def _ensure_item_group():
 	return TEST_ITEM_GROUP
 
 
+def _ensure_uom(uom_name=DEFAULT_STOCK_UOM):
+	if frappe.db.exists("UOM", uom_name):
+		return uom_name
+
+	frappe.get_doc(
+		{
+			"doctype": "UOM",
+			"uom_name": uom_name,
+			"enabled": 1,
+			"must_be_whole_number": 1,
+		}
+	).insert(ignore_permissions=True)
+	return uom_name
+
+
+def _get_stock_uom():
+	for uom_name in (DEFAULT_STOCK_UOM, "Unit", "Each"):
+		if frappe.db.exists("UOM", uom_name):
+			return uom_name
+
+	existing_uom = frappe.db.get_value("UOM", {"enabled": 1}, "name", order_by="creation asc")
+	if existing_uom:
+		return existing_uom
+
+	return _ensure_uom(DEFAULT_STOCK_UOM)
+
+
 def get_test_item():
 	"""Return any stock item, creating a minimal one if the site has none."""
 	ensure_test_site_masters()
@@ -205,7 +234,7 @@ def get_test_item():
 	item.item_code = TEST_ITEM_CODE
 	item.item_name = TEST_ITEM_CODE
 	item.item_group = _ensure_item_group()
-	item.stock_uom = frappe.db.get_value("UOM", {}, "name") or "Nos"
+	item.stock_uom = _get_stock_uom()
 	item.is_stock_item = 1
 	item.insert(ignore_permissions=True)
 	return item.name
