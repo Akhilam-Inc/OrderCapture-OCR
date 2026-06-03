@@ -155,9 +155,9 @@ def _ensure_item_group():
 			return name
 
 	if not frappe.db.exists("Item Group", "All Item Groups"):
-		frappe.get_doc(
-			{"doctype": "Item Group", "item_group_name": "All Item Groups", "is_group": 1}
-		).insert(ignore_permissions=True)
+		frappe.get_doc({"doctype": "Item Group", "item_group_name": "All Item Groups", "is_group": 1}).insert(
+			ignore_permissions=True
+		)
 
 	doc = frappe.get_doc(
 		{
