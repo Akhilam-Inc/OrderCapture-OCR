@@ -9,7 +9,6 @@ from frappe.contacts.doctype.address.address import address_query
 from frappe.desk.search import search_widget
 from frappe.tests import IntegrationTestCase
 from frappe.utils import set_request
-
 from ordercapture_ocr.api import get_customer_addresses, get_item_details_with_fallback, set_value
 from ordercapture_ocr.ordercapture_ocr.tests.test_helpers import (
 	get_or_create_test_customer,
@@ -34,9 +33,9 @@ class TestAPI(IntegrationTestCase):
 		self.assertIn(self.address_name, names)
 		self.assertEqual(
 			frappe.db.get_value("Address", self.address_name, "address_line1"),
-			addresses[0]["address_line1"] if len(addresses) == 1 else next(
-				a["address_line1"] for a in addresses if a["name"] == self.address_name
-			),
+			addresses[0]["address_line1"]
+			if len(addresses) == 1
+			else next(a["address_line1"] for a in addresses if a["name"] == self.address_name),
 		)
 
 	def test_get_customer_addresses_empty_for_unknown_customer(self):

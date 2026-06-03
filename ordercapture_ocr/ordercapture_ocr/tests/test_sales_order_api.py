@@ -3,7 +3,6 @@
 
 import frappe
 from frappe.tests import IntegrationTestCase
-
 from ordercapture_ocr.ordercapture_ocr.sales_order_api import (
 	attach_file_to_doc,
 	check_custom_field_exists,
