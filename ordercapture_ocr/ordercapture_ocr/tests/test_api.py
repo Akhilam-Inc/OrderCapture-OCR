@@ -11,7 +11,9 @@ from frappe.tests import IntegrationTestCase
 from frappe.utils import set_request
 from ordercapture_ocr.api import get_customer_addresses, get_item_details_with_fallback, set_value
 from ordercapture_ocr.ordercapture_ocr.tests.test_helpers import (
+	ensure_test_site_masters,
 	get_or_create_test_customer,
+	get_test_item,
 	make_address_for_customer,
 )
 
@@ -20,6 +22,7 @@ class TestAPI(IntegrationTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
+		ensure_test_site_masters()
 		cls.customer = get_or_create_test_customer()
 
 	def setUp(self):
@@ -126,10 +129,7 @@ class TestAPI(IntegrationTestCase):
 	def test_get_item_details_with_fallback_existing_item(self, mock_get_item_details):
 		mock_get_item_details.return_value = {"price_list_rate": 99}
 
-		item_code = frappe.db.get_value("Item", {}, "name")
-		if not item_code:
-			self.skipTest("No Item records available for fallback test")
-
+		item_code = get_test_item()
 		result = get_item_details_with_fallback({"item_code": item_code})
 		self.assertEqual(result["price_list_rate"], 99)
 		mock_get_item_details.assert_called_once()

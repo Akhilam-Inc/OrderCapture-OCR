@@ -9,13 +9,18 @@ from ordercapture_ocr.ordercapture_ocr.sales_order_api import (
 	get_customer_item_code,
 	parse_iso_date,
 )
-from ordercapture_ocr.ordercapture_ocr.tests.test_helpers import get_or_create_test_customer
+from ordercapture_ocr.ordercapture_ocr.tests.test_helpers import (
+	ensure_test_site_masters,
+	get_or_create_test_customer,
+	get_test_item,
+)
 
 
 class TestSalesOrderAPI(IntegrationTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
+		ensure_test_site_masters()
 		cls.customer = get_or_create_test_customer()
 
 	def test_parse_iso_date(self):
@@ -25,10 +30,7 @@ class TestSalesOrderAPI(IntegrationTestCase):
 		self.assertIsNone(parse_iso_date(""))
 
 	def test_get_customer_item_code_maps_active_items(self):
-		item_code = frappe.db.get_value("Item", {}, "name")
-		if not item_code:
-			self.skipTest("No Item records available")
-
+		item_code = get_test_item()
 		customer_item_code = f"CUST-ITEM-{frappe.generate_hash(length=6)}"
 		mapping = frappe.get_doc(
 			{
