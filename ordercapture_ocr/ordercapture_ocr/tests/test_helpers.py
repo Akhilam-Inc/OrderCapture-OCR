@@ -4,6 +4,10 @@
 import frappe
 
 DEFAULT_TEST_COUNTRY = "India"
+TEST_CUSTOMER_GROUP = "_Test OCR Customer Group"
+TEST_TERRITORY = "_Test OCR Territory"
+TEST_ITEM_GROUP = "_Test OCR Item Group"
+TEST_ITEM_CODE = "_Test OCR Item"
 DEFAULT_ADDRESS_TEMPLATE = """{{ address_line1 }}<br>
 {% if address_line2 %}{{ address_line2 }}<br>{% endif -%}
 {{ city }}<br>
@@ -73,6 +77,9 @@ def _get_test_territory():
 
 
 def _ensure_customer_group():
+	if frappe.db.exists("Customer Group", TEST_CUSTOMER_GROUP):
+		return TEST_CUSTOMER_GROUP
+
 	customer_group = _get_test_customer_group()
 	if customer_group:
 		return customer_group
@@ -86,19 +93,21 @@ def _ensure_customer_group():
 			}
 		).insert(ignore_permissions=True)
 
-	doc = frappe.get_doc(
+	frappe.get_doc(
 		{
 			"doctype": "Customer Group",
-			"customer_group_name": "_Test OCR Customer Group",
+			"customer_group_name": TEST_CUSTOMER_GROUP,
 			"parent_customer_group": "All Customer Groups",
 			"is_group": 0,
 		}
-	)
-	doc.insert(ignore_permissions=True)
-	return doc.name
+	).insert(ignore_permissions=True)
+	return TEST_CUSTOMER_GROUP
 
 
 def _ensure_territory():
+	if frappe.db.exists("Territory", TEST_TERRITORY):
+		return TEST_TERRITORY
+
 	territory = _get_test_territory()
 	if territory:
 		return territory
@@ -112,16 +121,15 @@ def _ensure_territory():
 			}
 		).insert(ignore_permissions=True)
 
-	doc = frappe.get_doc(
+	frappe.get_doc(
 		{
 			"doctype": "Territory",
-			"territory_name": "_Test OCR Territory",
+			"territory_name": TEST_TERRITORY,
 			"parent_territory": "All Territories",
 			"is_group": 0,
 		}
-	)
-	doc.insert(ignore_permissions=True)
-	return doc.name
+	).insert(ignore_permissions=True)
+	return TEST_TERRITORY
 
 
 def get_test_country():
@@ -150,30 +158,39 @@ def get_or_create_test_customer(customer_name="_Test OCR Customer"):
 
 
 def _ensure_item_group():
-	for name in ("Products", "All Item Groups", "_Test Item Group"):
+	if frappe.db.exists("Item Group", TEST_ITEM_GROUP):
+		return TEST_ITEM_GROUP
+
+	for name in ("Products", "_Test Item Group"):
 		if frappe.db.exists("Item Group", name) and not frappe.db.get_value("Item Group", name, "is_group"):
 			return name
+
+	leaf_group = frappe.db.get_value("Item Group", {"is_group": 0}, "name", order_by="creation asc")
+	if leaf_group:
+		return leaf_group
 
 	if not frappe.db.exists("Item Group", "All Item Groups"):
 		frappe.get_doc({"doctype": "Item Group", "item_group_name": "All Item Groups", "is_group": 1}).insert(
 			ignore_permissions=True
 		)
 
-	doc = frappe.get_doc(
+	frappe.get_doc(
 		{
 			"doctype": "Item Group",
-			"item_group_name": "_Test OCR Item Group",
+			"item_group_name": TEST_ITEM_GROUP,
 			"parent_item_group": "All Item Groups",
 			"is_group": 0,
 		}
-	)
-	doc.insert(ignore_permissions=True)
-	return doc.name
+	).insert(ignore_permissions=True)
+	return TEST_ITEM_GROUP
 
 
 def get_test_item():
 	"""Return any stock item, creating a minimal one if the site has none."""
 	ensure_test_site_masters()
+
+	if frappe.db.exists("Item", TEST_ITEM_CODE):
+		return TEST_ITEM_CODE
 
 	item_code = frappe.db.get_value(
 		"Item",
@@ -184,13 +201,9 @@ def get_test_item():
 	if item_code:
 		return item_code
 
-	item_code = "_Test OCR Item"
-	if frappe.db.exists("Item", item_code):
-		return item_code
-
 	item = frappe.new_doc("Item")
-	item.item_code = item_code
-	item.item_name = item_code
+	item.item_code = TEST_ITEM_CODE
+	item.item_name = TEST_ITEM_CODE
 	item.item_group = _ensure_item_group()
 	item.stock_uom = frappe.db.get_value("UOM", {}, "name") or "Nos"
 	item.is_stock_item = 1
